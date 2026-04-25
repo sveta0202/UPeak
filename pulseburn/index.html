@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseBurn — аналитика восстановления и риска выгорания</title>
+  <meta name="description" content="Сервис аналитики по данным Apple Watch и WHOOP: оценка вероятности выгорания, восстановление, тренды нагрузки." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+
+  <header class="header">
+    <a class="logo" href="#">PulseBurn</a>
+    <nav class="nav" id="nav">
+      <a href="#product">Продукт</a>
+      <a href="#integrations">Интеграции</a>
+      <a href="#how">Как работает</a>
+      <a href="#pricing">Тарифы</a>
+    </nav>
+    <div class="header-actions">
+      <a class="btn btn-ghost" href="#contact">Войти</a>
+      <a class="btn btn-primary" href="planner.html">Открыть прототип</a>
+      <button type="button" class="menu-toggle" id="menuToggle" aria-label="Меню" aria-expanded="false">
+        <span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Аналитика для тех, кто не может «просто отдохнуть»</p>
+          <h1>Данные с Apple Watch и WHOOP — в одной картине <em>риска выгорания</em></h1>
+          <p class="lead">
+            Собираем сигналы восстановления, сна и нагрузки, строим вероятностную модель усталости
+            и подсказываем, когда организму нужна пауза — до того, как станет поздно.
+          </p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg" href="planner.html">Открыть прототип планировщика</a>
+            <a class="btn btn-outline btn-lg" href="#how">Как это устроено</a>
+          </div>
+          <ul class="hero-bullets">
+            <li>Синхронизация с HealthKit и экосистемой WHOOP</li>
+            <li>Индекс выгорания и тренды по неделям</li>
+            <li>Приватность: вы контролируете, что передаётся</li>
+          </ul>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="card-stack">
+            <div class="mock-card mock-card--back">
+              <span class="mock-label">WHOOP</span>
+              <div class="mock-bars">
+                <span style="--h: 40%"></span>
+                <span style="--h: 72%"></span>
+                <span style="--h: 55%"></span>
+                <span style="--h: 88%"></span>
+                <span style="--h: 48%"></span>
+              </div>
+            </div>
+            <div class="mock-card mock-card--mid">
+              <span class="mock-label">Apple Watch</span>
+              <div class="mock-ring">
+                <svg viewBox="0 0 100 100">
+                  <circle class="ring-bg" cx="50" cy="50" r="42" />
+                  <circle class="ring-fill" cx="50" cy="50" r="42" />
+                </svg>
+                <span class="ring-text">HRV</span>
+              </div>
+            </div>
+            <div class="mock-card mock-card--front">
+              <span class="mock-title">Индекс выгорания</span>
+              <div class="mock-score">
+                <span class="score-value">34</span>
+                <span class="score-unit">/100</span>
+              </div>
+              <p class="mock-hint">Ниже среднего за 14 дней — зона внимания</p>
+              <div class="mock-pill">Рекомендация: снизить интенсивность на 1–2 дня</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section logos" id="product">
+      <p class="section-eyebrow">Источники данных</p>
+      <div class="logo-row">
+        <span class="logo-pill">Apple Health</span>
+        <span class="logo-pill">WHOOP</span>
+        <span class="logo-pill">Сон &amp; HRV</span>
+        <span class="logo-pill">Активность</span>
+      </div>
+    </section>
+
+    <section class="section features">
+      <div class="section-head">
+        <h2>Что вы получаете</h2>
+        <p>Не просто графики — интерпретация под ваш ритм жизни и работы.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon">◆</div>
+          <h3>Вероятность выгорания</h3>
+          <p>Комбинируем HRV, сон, нагрузку и субъективные отметки в единый индекс риска с пояснением драйверов.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">◇</div>
+          <h3>Окна восстановления</h3>
+          <p>Видно, когда организм успевает адаптироваться, а когда накапливается дефицит — по дням и неделям.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">○</div>
+          <h3>Сравнение с базой</h3>
+          <p>Анонимные бенчмарки по возрасту и уровню активности — чтобы понимать, «нормально ли» ваше состояние.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">◎</div>
+          <h3>Экспорт и API</h3>
+          <p>Выгрузка отчётов для врача или коуча; API для команд и корпоративных программ wellbeing.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section integrations" id="integrations">
+      <div class="int-grid">
+        <div class="int-copy">
+          <h2>Два трекера — одна логика</h2>
+          <p>
+            Apple Watch даёт богатый контекст дня и официальный HealthKit.
+            WHOOP — глубину по восстановлению и нагрузке. Мы нормализуем метрики и убираем шум,
+            чтобы вы не гадали, кому верить.
+          </p>
+          <ul class="int-list">
+            <li><strong>HealthKit:</strong> сон, пульс, HRV, активные калории, тренировки</li>
+            <li><strong>WHOOP:</strong> strain, recovery, цикл сна, дыхание (где доступно)</li>
+            <li><strong>Модель:</strong> обновляется ежедневно; алерты при устойчивом ухудшении тренда</li>
+          </ul>
+        </div>
+        <div class="int-panel">
+          <div class="int-stat">
+            <span class="int-stat-label">Согласованность сигналов</span>
+            <span class="int-stat-value">+18%</span>
+            <span class="int-stat-note">точнее прогноз при объединении двух источников*</span>
+          </div>
+          <p class="int-disclaimer">* Иллюстративный пример для демонстрации продукта.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section how" id="how">
+      <div class="section-head">
+        <h2>Как это работает</h2>
+        <p>Три шага от подключения до первых инсайтов.</p>
+      </div>
+      <ol class="steps">
+        <li>
+          <span class="step-num">1</span>
+          <h3>Подключите устройства</h3>
+          <p>Разрешения в Health и аккаунт WHOOP — только то, что нужно для расчётов.</p>
+        </li>
+        <li>
+          <span class="step-num">2</span>
+          <h3>Калибровка 7–14 дней</h3>
+          <p>Модель учитывает ваш базовый уровень, а не «среднего человека из интернета».</p>
+        </li>
+        <li>
+          <span class="step-num">3</span>
+          <h3>Индекс и рекомендации</h3>
+          <p>Ежедневный дашборд, еженедельный отчёт и мягкие подсказки по нагрузке и сну.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section pricing" id="pricing">
+      <div class="section-head">
+        <h2>Тарифы</h2>
+        <p>Старт для личного использования и пилоты для команд.</p>
+      </div>
+      <div class="pricing-grid">
+        <article class="price-card">
+          <h3>Личный</h3>
+          <p class="price"><span class="price-amount">990</span> ₽/мес</p>
+          <ul>
+            <li>2 источника данных</li>
+            <li>Индекс выгорания</li>
+            <li>Еженедельный PDF</li>
+          </ul>
+          <a class="btn btn-outline btn-block" href="#contact">Выбрать</a>
+        </article>
+        <article class="price-card price-card--featured">
+          <span class="badge">Популярный</span>
+          <h3>Про</h3>
+          <p class="price"><span class="price-amount">1 990</span> ₽/мес</p>
+          <ul>
+            <li>Всё из «Личного»</li>
+            <li>API и вебхуки</li>
+            <li>Приоритетная поддержка</li>
+          </ul>
+          <a class="btn btn-primary btn-block" href="#contact">Попробовать</a>
+        </article>
+        <article class="price-card">
+          <h3>Команда</h3>
+          <p class="price"><span class="price-amount">по запросу</span></p>
+          <ul>
+            <li>Агрегированная аналитика</li>
+            <li>SSO и политики данных</li>
+            <li>Онбординг и обучение</li>
+          </ul>
+          <a class="btn btn-outline btn-block" href="#contact">Связаться</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section cta" id="contact">
+      <div class="cta-inner">
+        <h2>Забронируйте место в закрытой бете</h2>
+        <p>Оставьте email — пришлём инструкцию по подключению и политику данных.</p>
+        <form class="cta-form" action="#" method="post">
+          <label class="sr-only" for="email">Email</label>
+          <input id="email" name="email" type="email" required placeholder="you@company.com" autocomplete="email" />
+          <button type="submit" class="btn btn-primary btn-lg">Отправить</button>
+        </form>
+        <p class="cta-note">Нажимая кнопку, вы соглашаетесь с обработкой email для рассылки по продукту. Без спама.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="logo logo--footer">PulseBurn</span>
+      <nav class="footer-nav">
+        <a href="#">Политика конфиденциальности</a>
+        <a href="#">Условия</a>
+        <a href="mailto:hello@pulseburn.example">hello@pulseburn.example</a>
+      </nav>
+      <p class="footer-copy">© 2026 PulseBurn. Демо-лендинг — замените контакты и юридические тексты перед запуском.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
