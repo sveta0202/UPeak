@@ -62,8 +62,13 @@
         <label>Оценка, мин
           <input type="number" id="taskDuration" min="5" max="360" step="5" required />
         </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="taskRoutine" />
+          <span>Рутина (базовая задача дня)</span>
+        </label>
         <div class="row full">
-          <button class="btn" type="submit">Добавить задачу</button>
+          <button id="taskSubmitBtn" class="btn" type="submit">Добавить задачу</button>
+          <button id="cancelEditBtn" class="btn secondary hidden" type="button">Отменить редактирование</button>
           <button id="planBtn" class="btn secondary" type="button">Распределить по состоянию</button>
         </div>
       </form>
@@ -77,6 +82,7 @@
             <th>Срочн.</th>
             <th>Мин</th>
             <th>Рекомендованный слот</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody id="taskTableBody"></tbody>
