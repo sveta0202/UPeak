@@ -148,3 +148,8 @@ th, td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; f
   .grid.two, .grid.three, .grid.four { grid-template-columns: 1fr; }
   .top { flex-direction: column; align-items: flex-start; }
 }
+.sync-status {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #7b8291;
+}

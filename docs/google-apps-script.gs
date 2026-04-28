@@ -1,59 +1,117 @@
-﻿// ID таблицы из URL:
-// https://docs.google.com/spreadsheets/d/<THIS_PART>/edit
-var SPREADSHEET_ID = "1bHzW_tvbNZY33tEJhdPqsNDbDL37OnYUzowlwPhMPhI";
+﻿var SPREADSHEET_ID = "PASTE_YOUR_SHEET_ID_HERE";
+var SHARED_TOKEN = "PASTE_THE_SAME_SECRET_AS_IN_RAILWAY";
 
 function doPost(e) {
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var raw = e.postData && e.postData.contents ? e.postData.contents : "{}";
-  var data = JSON.parse(raw);
+  try {
+    var raw = e && e.postData && e.postData.contents ? e.postData.contents : "{}";
+    var data = JSON.parse(raw);
 
-  var eventsSheet = getOrCreateSheet_(ss, "events");
-  var tasksSheet = getOrCreateSheet_(ss, "tasks");
+    if (!data.proxyToken || data.proxyToken !== SHARED_TOKEN) {
+      return jsonResponse({ ok: false, error: "Unauthorized" });
+    }
 
-  if (eventsSheet.getLastRow() === 0) {
-    eventsSheet.appendRow(["timestamp", "date", "userName", "eventType", "readiness", "payload_json"]);
-  }
-  if (tasksSheet.getLastRow() === 0) {
-    tasksSheet.appendRow(["timestamp", "date", "userName", "taskId", "title", "difficulty", "urgency", "duration", "done", "slot"]);
-  }
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var eventsSheet = getOrCreateSheet(ss, "events");
+    var tasksSheet = getOrCreateSheet(ss, "tasks");
 
-  eventsSheet.appendRow([
-    data.timestamp || new Date().toISOString(),
-    data.date || "",
-    data.userName || "anonymous",
-    data.eventType || "unknown",
-    data.readiness || "",
-    JSON.stringify(data.payload || {})
-  ]);
+    ensureHeaders(eventsSheet, tasksSheet);
 
-  if (data.eventType === "task_created" || data.eventType === "task_toggled") {
-    var p = data.payload || {};
-    tasksSheet.appendRow([
+    eventsSheet.appendRow([
       data.timestamp || new Date().toISOString(),
       data.date || "",
+      data.source || "pulseburn-planner",
       data.userName || "anonymous",
-      p.id || "",
-      p.title || "",
-      p.difficulty || "",
-      p.urgency || "",
-      p.duration || "",
-      String(p.done || false),
-      p.slot || ""
+      data.eventType || "unknown",
+      data.readiness || "",
+      JSON.stringify(data.payload || {}),
+      data.ip || "",
+      data.userAgent || "",
+      data.receivedAt || new Date().toISOString()
     ]);
-  }
 
-  return jsonResponse_({ ok: true });
+    if (isTaskEvent(data.eventType)) {
+      var p = data.payload || {};
+      tasksSheet.appendRow([
+        data.timestamp || new Date().toISOString(),
+        data.date || "",
+        data.source || "pulseburn-planner",
+        data.userName || "anonymous",
+        data.eventType || "unknown",
+        p.id || "",
+        p.title || "",
+        String(Boolean(p.routine)),
+        p.difficulty || "",
+        p.urgency || "",
+        p.duration || "",
+        String(Boolean(p.done)),
+        p.slot || "",
+        data.receivedAt || new Date().toISOString()
+      ]);
+    }
+
+    return jsonResponse({ ok: true });
+  } catch (err) {
+    return jsonResponse({
+      ok: false,
+      error: String(err && err.message ? err.message : err)
+    });
+  }
 }
 
 function doGet() {
-  return jsonResponse_({ ok: true, service: "pulseburn_planner_webhook" });
+  return jsonResponse({ ok: true, service: "upeak-apps-script" });
 }
 
-function getOrCreateSheet_(ss, name) {
+function isTaskEvent(eventType) {
+  return [
+    "task_created",
+    "task_edited",
+    "task_deleted",
+    "task_toggled"
+  ].indexOf(String(eventType)) !== -1;
+}
+
+function getOrCreateSheet(ss, name) {
   return ss.getSheetByName(name) || ss.insertSheet(name);
 }
 
-function jsonResponse_(obj) {
+function ensureHeaders(eventsSheet, tasksSheet) {
+  if (eventsSheet.getLastRow() === 0) {
+    eventsSheet.appendRow([
+      "timestamp",
+      "date",
+      "source",
+      "userName",
+      "eventType",
+      "readiness",
+      "payloadJson",
+      "ip",
+      "userAgent",
+      "receivedAt"
+    ]);
+  }
+
+  if (tasksSheet.getLastRow() === 0) {
+    tasksSheet.appendRow([
+      "timestamp",
+      "date",
+      "source",
+      "userName",
+      "eventType",
+      "taskId",
+      "title",
+      "routine",
+      "difficulty",
+      "urgency",
+      "duration",
+      "done",
+      "slot",
+      "receivedAt"
+    ]);
+  }
+}
+
+function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
