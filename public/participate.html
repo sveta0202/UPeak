@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="meta.participate.title">Upeak — Участие в эксперименте</title>
+    <meta name="description" content="" data-i18n="meta.participate.description">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif;
+        }
+
+        html { scroll-padding-top: 80px; }
+        body {
+            background: linear-gradient(180deg, #87CEEB 0%, #98D8E8 30%, #B0E0E6 60%, #E0F6FF 100%);
+            color: #1a365d;
+            min-height: 100vh;
+            padding-top: 64px;
+        }
+
+        .nav-blur {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .logo-peak {
+            width: 40px;
+            height: 40px;
+        }
+
+        .text-muted {
+            color: rgba(26, 54, 93, 0.7);
+        }
+
+        .accent-red { color: #ef4444; }
+
+        .form-card {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 12px 40px rgba(26, 54, 93, 0.12);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(26, 54, 93, 0.18);
+            border-radius: 10px;
+            color: #1a365d;
+            font-size: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: rgba(239, 68, 68, 0.6);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+        }
+
+        .form-input.is-invalid {
+            border-color: rgba(239, 68, 68, 0.7);
+            background: rgba(254, 226, 226, 0.5);
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1a365d;
+            margin-bottom: 6px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: rgba(26, 54, 93, 0.6);
+            margin-top: 4px;
+        }
+
+        .form-error {
+            display: none;
+            color: #b91c1c;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .form-error.is-visible { display: block; }
+
+        .btn-primary {
+            background: rgba(239, 68, 68, 0.9);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ffffff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: rgba(239, 68, 68, 1);
+            border-color: rgba(239, 68, 68, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.25);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .lang-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 2px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(26, 54, 93, 0.12);
+            border-radius: 999px;
+        }
+
+        .lang-switch button {
+            border: none;
+            background: transparent;
+            color: rgba(26, 54, 93, 0.65);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 4px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .lang-switch button.is-active {
+            background: rgba(239, 68, 68, 0.9);
+            color: #fff;
+        }
+
+        .lang-switch button:hover:not(.is-active) {
+            color: #1a365d;
+        }
+
+        .sf-icon {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            vertical-align: -0.125em;
+            fill: currentColor;
+        }
+
+        .status-banner {
+            display: none;
+            padding: 14px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .status-banner.is-visible { display: block; }
+        .status-banner.is-success {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #065f46;
+        }
+        .status-banner.is-error {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #991b1b;
+        }
+        .status-banner.is-info {
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            color: #1e3a8a;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full nav-blur z-50">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="index.html" class="flex items-center space-x-3">
+                    <div class="logo-peak">
+                        <img src="./upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" style="width:40px;height:40px;border-radius:10px;object-fit:cover;display:block">
+                    </div>
+                    <span class="text-lg font-medium text-gray-800">Upeak</span>
+                </a>
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="participate.back">← На главную</a>
+                    <div class="lang-switch" role="group" data-i18n-aria-label="nav.lang.aria" aria-label="Язык интерфейса">
+                        <svg class="sf-icon" style="margin:0 4px;color:#1a365d;opacity:0.65" aria-hidden="true"><use href="#sf-globe"></use></svg>
+                        <button type="button" data-lang-toggle="ru" aria-pressed="true">RU</button>
+                        <button type="button" data-lang-toggle="en" aria-pressed="false">EN</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-xl mx-auto px-6 py-12">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-light text-gray-800 mb-3" data-i18n="participate.title">
+                Участие в эксперименте
+            </h1>
+            <p class="text-muted" data-i18n="participate.subtitle">
+                Оставьте свои контакты — мы свяжемся с вами и пришлём детали 14-дневного эксперимента
+            </p>
+        </div>
+
+        <div class="form-card p-6 md:p-8">
+            <div id="statusBanner" class="status-banner" role="status" aria-live="polite"></div>
+
+            <form id="participateForm"
+                  novalidate
+                  data-script-url="PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"
+                  data-testid="participate-form">
+                <div class="mb-4">
+                    <label class="form-label" for="nameInput">
+                        <span data-i18n="participate.field.name">Имя</span>
+                        <span class="accent-red">*</span>
+                    </label>
+                    <input
+                        id="nameInput"
+                        name="name"
+                        type="text"
+                        autocomplete="name"
+                        required
+                        maxlength="120"
+                        class="form-input"
+                        data-i18n-placeholder="participate.placeholder.name"
+                        placeholder="Например, Анна"
+                        data-testid="participate-name" />
+                    <p class="form-error" id="nameError" data-i18n="participate.error.name" data-testid="participate-name-error">Пожалуйста, укажите имя</p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label" for="phoneInput">
+                        <span data-i18n="participate.field.phone">Телефон</span>
+                        <span class="accent-red">*</span>
+                    </label>
+                    <input
+                        id="phoneInput"
+                        name="phone"
+                        type="tel"
+                        autocomplete="tel"
+                        required
+                        maxlength="32"
+                        class="form-input"
+                        data-i18n-placeholder="participate.placeholder.phone"
+                        placeholder="+7 999 123-45-67"
+                        data-testid="participate-phone" />
+                    <p class="form-error" id="phoneError" data-i18n="participate.error.phone" data-testid="participate-phone-error">Укажите корректный телефон (минимум 7 цифр)</p>
+                </div>
+
+                <div class="mb-6">
+                    <label class="form-label" for="telegramInput">
+                        <span data-i18n="participate.field.telegram">Telegram</span>
+                        <span class="text-muted text-xs ml-1" data-i18n="participate.optional">(необязательно)</span>
+                    </label>
+                    <input
+                        id="telegramInput"
+                        name="telegram"
+                        type="text"
+                        autocomplete="off"
+                        maxlength="64"
+                        class="form-input"
+                        placeholder="@username"
+                        data-i18n-placeholder="participate.placeholder.telegram"
+                        data-testid="participate-telegram" />
+                    <p class="form-hint" data-i18n="participate.hint.telegram">Можно с @ или без — например, @ivanov или ivanov</p>
+                    <p class="form-error" id="telegramError" data-i18n="participate.error.telegram" data-testid="participate-telegram-error">Имя пользователя Telegram содержит недопустимые символы</p>
+                </div>
+
+                <button type="submit"
+                        id="submitButton"
+                        class="btn-primary w-full px-6 py-3 rounded-lg font-medium text-base"
+                        data-testid="participate-submit">
+                    <span data-i18n="participate.submit">Отправить заявку</span>
+                </button>
+
+                <p class="text-center text-xs text-muted mt-4" data-i18n="participate.privacy">
+                    Отправляя форму, вы соглашаетесь с тем, что мы используем эти данные только для связи по эксперименту.
+                </p>
+            </form>
+        </div>
+    </main>
+
+    <script src="./icons.js"></script>
+    <script src="./i18n.js"></script>
+    <script src="./participate.js"></script>
+</body>
+</html>

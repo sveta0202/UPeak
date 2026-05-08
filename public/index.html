@@ -14,10 +14,12 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif;
         }
 
+        html { scroll-padding-top: 80px; }
         body {
             background: linear-gradient(180deg, #87CEEB 0%, #98D8E8 30%, #B0E0E6 60%, #E0F6FF 100%);
             color: #1a365d;
             overflow-x: hidden;
+            padding-top: 64px;
         }
 
         .research-card {
@@ -80,8 +82,8 @@
         }
 
         .logo-peak {
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
         }
 
         .accent-red {
@@ -144,9 +146,9 @@
         }
 
         .hero-logo {
-            width: 144px;
-            height: 144px;
-            border-radius: 28px;
+            width: 168px;
+            height: 168px;
+            border-radius: 32px;
             object-fit: cover;
             box-shadow: 0 12px 32px rgba(26, 54, 93, 0.15);
             margin: 0 auto 1.25rem;
@@ -154,7 +156,7 @@
         }
 
         @media (min-width: 768px) {
-            .hero-logo { width: 176px; height: 176px; }
+            .hero-logo { width: 208px; height: 208px; }
         }
     </style>
 </head>
@@ -165,7 +167,7 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
                     <div class="logo-peak">
-                        <img src="./assets/upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" style="width:32px;height:32px;border-radius:8px;object-fit:cover;display:block">
+                        <img src="./upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" style="width:40px;height:40px;border-radius:10px;object-fit:cover;display:block">
                     </div>
                     <span class="text-lg font-medium text-gray-800">Upeak</span>
                 </div>
@@ -173,7 +175,7 @@
                     <a href="#research" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.research">Исследование</a>
                     <a href="#experiment" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.experiment">Эксперимент</a>
                     <a href="#results" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.results">Результаты</a>
-                    <a href="planner.html" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium" data-i18n="nav.join">
+                    <a href="participate.html" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium" data-i18n="nav.join" data-testid="nav-join">
                         Участвовать
                     </a>
                     <div class="lang-switch" role="group" data-i18n-aria-label="nav.lang.aria" aria-label="Язык интерфейса">
@@ -191,7 +193,7 @@
         <div class="max-w-4xl mx-auto text-center fade-in">
             <div class="mb-8">
                 <div class="inline-block">
-                    <img class="hero-logo" src="./assets/upeak-logo.jpg" alt="Логотип Upeak" data-i18n-alt="hero.logo.alt">
+                    <img class="hero-logo" src="./upeak-logo.jpg" alt="Логотип Upeak" data-i18n-alt="hero.logo.alt">
                     <h2 class="text-2xl font-medium text-gray-800 mb-2" data-i18n="hero.brand">Upeak</h2>
                     <p class="text-muted text-sm" data-i18n="hero.eyebrow">Исследовательский прототип</p>
                 </div>
@@ -205,7 +207,7 @@
                 Мы проводим 14-дневный эксперимент, чтобы понять как состояние влияет на твою нагрузку и выполнение задач
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="planner.html" class="btn-primary px-8 py-4 rounded-lg font-medium text-lg" data-i18n="hero.cta.join">
+                <a href="participate.html" class="btn-primary px-8 py-4 rounded-lg font-medium text-lg" data-i18n="hero.cta.join" data-testid="hero-join">
                     Участвовать в эксперименте
                 </a>
                 <button class="btn-research px-8 py-4 rounded-lg font-medium text-lg" data-i18n="hero.cta.more">
@@ -384,7 +386,7 @@
             <p class="text-lg text-muted mb-8" data-i18n="cta.subtitle">
                 Помоги нам понять, как люди работают на самом деле
             </p>
-            <a href="planner.html" class="btn-primary px-10 py-4 rounded-lg font-medium text-xl" data-i18n="hero.cta.join">
+            <a href="participate.html" class="btn-primary px-10 py-4 rounded-lg font-medium text-xl" data-i18n="hero.cta.join" data-testid="cta-join">
                 Участвовать в эксперименте
             </a>
         </div>
