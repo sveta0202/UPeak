@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PulseBurn Planner Prototype</title>
+  <title data-i18n="meta.planner.title">PulseBurn Planner Prototype</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -12,78 +12,88 @@
 <body>
   <main class="layout">
     <header class="top">
-      <div>
-        <p class="eyebrow">Research prototype</p>
-        <h1>Планировщик задач по состоянию</h1>
+      <div class="top-brand">
+        <img class="brand-logo" src="./assets/upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" />
+        <div>
+          <p class="eyebrow" data-i18n="planner.eyebrow">Исследовательский прототип</p>
+          <h1 data-i18n="planner.title">Планировщик задач по состоянию</h1>
+        </div>
       </div>
-      <a class="home-link" href="index.html">На лендинг</a>
+      <div class="top-actions">
+        <div class="lang-switch" role="group" data-i18n-aria-label="nav.lang.aria" aria-label="Язык интерфейса">
+          <svg class="sf-icon" aria-hidden="true"><use href="#sf-globe"></use></svg>
+          <button type="button" data-lang-toggle="ru" aria-pressed="true">RU</button>
+          <button type="button" data-lang-toggle="en" aria-pressed="false">EN</button>
+        </div>
+        <a class="home-link" href="index.html" data-i18n="planner.home">На лендинг</a>
+      </div>
     </header>
     <p id="syncStatus" class="sync-status" aria-live="polite"></p>
 
     <section class="card">
-      <h2>1) Утренний чек-ин состояния</h2>
+      <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-sleep"></use></svg></span><span data-i18n="planner.morning.title">1) Утренний чек-ин состояния</span></h2>
       <form id="morningForm" class="grid three">
-        <label>Сон, часов
+        <label><span data-i18n="planner.morning.sleepHours">Сон, часов</span>
           <input type="number" id="sleepHours" min="0" max="14" step="0.5" required />
         </label>
-        <label>Качество сна (1-5)
+        <label><span data-i18n="planner.morning.sleepQuality">Качество сна (1-5)</span>
           <input type="number" id="sleepQuality" min="1" max="5" required />
         </label>
-        <label>Энергия утром (1-5)
+        <label><span data-i18n="planner.morning.energy">Энергия утром (1-5)</span>
           <input type="number" id="energy" min="1" max="5" required />
         </label>
-        <label>Самочувствие (1-5)
+        <label><span data-i18n="planner.morning.wellbeing">Самочувствие (1-5)</span>
           <input type="number" id="wellbeing" min="1" max="5" required />
         </label>
-        <label>Стресс (1-5)
+        <label><span data-i18n="planner.morning.stress">Стресс (1-5)</span>
           <input type="number" id="stress" min="1" max="5" required />
         </label>
-        <label>Комментарий
-          <input id="morningNote" placeholder="Коротко: как вы себя чувствуете" />
+        <label><span data-i18n="planner.morning.note">Комментарий</span>
+          <input id="morningNote" placeholder="Коротко: как вы себя чувствуете" data-i18n-placeholder="planner.morning.notePh" />
         </label>
         <div class="row full">
-          <button class="btn" type="submit">Сохранить чек-ин</button>
+          <button class="btn" type="submit" data-i18n="planner.morning.save">Сохранить чек-ин</button>
           <strong id="readinessValue">Готовность: —</strong>
         </div>
       </form>
     </section>
 
     <section class="card">
-      <h2>2) Задачи на день</h2>
+      <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-list"></use></svg></span><span data-i18n="planner.tasks.title">2) Задачи на день</span></h2>
       <form id="taskForm" class="grid four">
-        <label>Задача
-          <input id="taskTitle" required placeholder="Например, подготовить презентацию" />
+        <label><span data-i18n="planner.tasks.task">Задача</span>
+          <input id="taskTitle" required placeholder="Например, подготовить презентацию" data-i18n-placeholder="planner.tasks.taskPh" />
         </label>
-        <label>Сложность (1-5)
+        <label><span data-i18n="planner.tasks.difficulty">Сложность (1-5)</span>
           <input type="number" id="taskDifficulty" min="1" max="5" required />
         </label>
-        <label>Срочность (1-5)
+        <label><span data-i18n="planner.tasks.urgency">Срочность (1-5)</span>
           <input type="number" id="taskUrgency" min="1" max="5" required />
         </label>
-        <label>Оценка, мин
+        <label><span data-i18n="planner.tasks.duration">Оценка, мин</span>
           <input type="number" id="taskDuration" min="5" max="360" step="5" required />
         </label>
         <label class="checkbox-label">
           <input type="checkbox" id="taskRoutine" />
-          <span>Рутина (базовая задача дня)</span>
+          <span data-i18n="planner.tasks.routine">Рутина (базовая задача дня)</span>
         </label>
         <div class="row full">
-          <button id="taskSubmitBtn" class="btn" type="submit">Добавить задачу</button>
-          <button id="cancelEditBtn" class="btn secondary hidden" type="button">Отменить редактирование</button>
-          <button id="planBtn" class="btn secondary" type="button">Распределить по состоянию</button>
+          <button id="taskSubmitBtn" class="btn" type="submit" data-i18n="planner.tasks.add">Добавить задачу</button>
+          <button id="cancelEditBtn" class="btn secondary hidden" type="button" data-i18n="planner.tasks.cancelEdit">Отменить редактирование</button>
+          <button id="planBtn" class="btn secondary" type="button" data-i18n="planner.tasks.distribute">Распределить по состоянию</button>
         </div>
       </form>
 
       <table>
         <thead>
           <tr>
-            <th>Статус</th>
-            <th>Задача</th>
-            <th>Сложн.</th>
-            <th>Срочн.</th>
-            <th>Мин</th>
-            <th>Рекомендованный слот</th>
-            <th>Действия</th>
+            <th data-i18n="planner.tasks.col.status">Статус</th>
+            <th data-i18n="planner.tasks.col.title">Задача</th>
+            <th data-i18n="planner.tasks.col.diff">Сложн.</th>
+            <th data-i18n="planner.tasks.col.urg">Срочн.</th>
+            <th data-i18n="planner.tasks.col.min">Мин</th>
+            <th data-i18n="planner.tasks.col.slot">Рекомендованный слот</th>
+            <th data-i18n="planner.tasks.col.actions">Действия</th>
           </tr>
         </thead>
         <tbody id="taskTableBody"></tbody>
@@ -91,19 +101,19 @@
     </section>
 
     <section class="card">
-      <h2>3) Вечерний итог дня</h2>
+      <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-chart"></use></svg></span><span data-i18n="planner.evening.title">3) Вечерний итог дня</span></h2>
       <form id="eveningForm" class="grid three">
-        <label>Продуктивность (1-5)
+        <label><span data-i18n="planner.evening.productivity">Продуктивность (1-5)</span>
           <input type="number" id="productivity" min="1" max="5" required />
         </label>
-        <label>Усталость к вечеру (1-5)
+        <label><span data-i18n="planner.evening.fatigue">Усталость к вечеру (1-5)</span>
           <input type="number" id="fatigue" min="1" max="5" required />
         </label>
-        <label>Комментарий
-          <input id="eveningNote" placeholder="Что помогло/мешало" />
+        <label><span data-i18n="planner.evening.note">Комментарий</span>
+          <input id="eveningNote" placeholder="Что помогло/мешало" data-i18n-placeholder="planner.evening.notePh" />
         </label>
         <div class="row full">
-          <button class="btn" type="submit">Закрыть день</button>
+          <button class="btn" type="submit" data-i18n="planner.evening.save">Закрыть день</button>
           <strong id="factValue">Факт: 0/0 выполнено</strong>
         </div>
         <p id="dayStatus" class="muted full">День не закрыт</p>
@@ -111,6 +121,8 @@
     </section>
   </main>
 
+  <script src="./icons.js"></script>
+  <script src="./i18n.js"></script>
   <script src="./planner.js"></script>
 </body>
 </html>

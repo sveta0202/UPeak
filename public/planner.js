@@ -13,12 +13,46 @@
     syncStatus: byId("syncStatus")
   };
   var editingTaskId = null;
+  var lastSyncStatus = "idle";
+
+  function t(key) {
+    if (window.UpeakI18n && typeof window.UpeakI18n.t === "function") {
+      return window.UpeakI18n.t(key);
+    }
+    return key;
+  }
+
+  // Slot keys are stored canonically; localized labels come from i18n.
+  var SLOT_KEYS = {
+    morningRoutine: "planner.slot.morningRoutine",
+    morningFocus: "planner.slot.morningFocus",
+    dayOps: "planner.slot.dayOps",
+    eveningLight: "planner.slot.eveningLight",
+    none: "planner.slot.none",
+    postpone: "planner.slot.postpone",
+    simplify: "planner.slot.simplify"
+  };
+
+  // Backward-compat: migrate any legacy localized slot strings to canonical keys.
+  migrateSlots();
 
   renderTasks();
   updateFact();
   updateReadiness();
   updateDayStatus();
   updateSyncStatus("idle");
+
+  if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
+    window.UpeakI18n.onChange(function () {
+      renderTasks();
+      updateFact();
+      updateReadiness();
+      updateDayStatus();
+      updateSyncStatus(lastSyncStatus);
+      // Refresh the task submit button label based on edit state
+      el.taskSubmitBtn.textContent = editingTaskId ? t("planner.tasks.saveEdit") : t("planner.tasks.add");
+    });
+  }
 
   byId("morningForm").addEventListener("submit", function (event) {
     event.preventDefault();
@@ -56,18 +90,18 @@
     };
 
     if (!formTask.title) {
-      alert("Введите название задачи");
+      alert(t("planner.alerts.titleRequired"));
       return;
     }
 
     if (editingTaskId) {
       state.tasks = state.tasks.map(function (task) {
         if (task.id !== editingTaskId) return task;
-        var nextSlot = formTask.routine
-          ? "Утро (рутина)"
-          : (task.slot === "Утро (рутина)" ? "Без слота" : task.slot);
+        var nextSlotKey = formTask.routine
+          ? SLOT_KEYS.morningRoutine
+          : (task.slotKey === SLOT_KEYS.morningRoutine ? SLOT_KEYS.none : task.slotKey);
 
-        return Object.assign({}, task, formTask, { slot: nextSlot });
+        return Object.assign({}, task, formTask, { slotKey: nextSlotKey });
       });
 
       sync("task_edited", Object.assign({ id: editingTaskId }, formTask));
@@ -77,7 +111,7 @@
         {
           id: makeId(),
           done: false,
-          slot: formTask.routine ? "Утро (рутина)" : "Без слота"
+          slotKey: formTask.routine ? SLOT_KEYS.morningRoutine : SLOT_KEYS.none
         },
         formTask
       );
@@ -129,7 +163,7 @@
   function distributeTasks() {
     var readiness = state.readiness || 50;
     var budget = readiness < 40 ? 7 : readiness < 70 ? 11 : 16;
-    var slots = ["Утро (фокус)", "День (операционка)", "Вечер (лёгкие)"];
+    var slotKeys = [SLOT_KEYS.morningFocus, SLOT_KEYS.dayOps, SLOT_KEYS.eveningLight];
     var remaining = budget;
 
     var sorted = state.tasks.slice().sort(function (a, b) {
@@ -140,23 +174,23 @@
 
     sorted.forEach(function (task) {
       if (isRoutineTask(task)) {
-        task.slot = "Утро (рутина)";
+        task.slotKey = SLOT_KEYS.morningRoutine;
         return;
       }
 
       var load = task.difficulty + Math.ceil(task.duration / 45);
 
       if (remaining <= 0) {
-        task.slot = "Перенести на завтра";
+        task.slotKey = SLOT_KEYS.postpone;
         return;
       }
 
       if (readiness < 45 && task.difficulty >= 4) {
-        task.slot = "Перенести или упростить";
+        task.slotKey = SLOT_KEYS.simplify;
         return;
       }
 
-      task.slot = load >= 6 ? slots[0] : load >= 4 ? slots[1] : slots[2];
+      task.slotKey = load >= 6 ? slotKeys[0] : load >= 4 ? slotKeys[1] : slotKeys[2];
       remaining -= load;
     });
 
@@ -173,7 +207,7 @@
       routineCount += 1;
       return Object.assign({}, task, {
         done: false,
-        slot: "Утро (рутина)"
+        slotKey: SLOT_KEYS.morningRoutine
       });
     });
 
@@ -187,7 +221,7 @@
   function renderTasks() {
     if (!state.tasks.length) {
       el.taskTableBody.innerHTML =
-        '<tr><td colspan="7" class="muted">Пока нет задач на день</td></tr>';
+        '<tr><td colspan="7" class="muted">' + escapeHtml(t("planner.tasks.empty")) + '</td></tr>';
       bindTaskActions();
       return;
     }
@@ -196,23 +230,26 @@
 
     el.taskTableBody.innerHTML = displayTasks.map(function (task) {
       var isRoutine = isRoutineTask(task);
+      var slotLabel = task.slotKey ? t(task.slotKey) : t(SLOT_KEYS.none);
 
       return (
         '<tr>' +
           '<td><input type="checkbox" data-id="' + task.id + '" ' + (task.done ? "checked" : "") + '></td>' +
           '<td class="' + (task.done ? "task-done" : "") + '">' +
             '<span class="task-title">' + escapeHtml(cleanTaskTitle(task.title)) + '</span>' +
-            (isRoutine ? ' <span class="routine-chip">рутина</span>' : '') +
+            (isRoutine ? ' <span class="routine-chip">' + escapeHtml(t("planner.tasks.routineChip")) + '</span>' : '') +
           '</td>' +
           '<td>' + task.difficulty + '</td>' +
           '<td>' + task.urgency + '</td>' +
           '<td>' + task.duration + '</td>' +
-          '<td><span class="slot-chip">' + escapeHtml(task.slot) + '</span></td>' +
+          '<td><span class="slot-chip">' + escapeHtml(slotLabel) + '</span></td>' +
           '<td class="actions-cell">' +
-            '<button type="button" class="menu-btn" data-menu-id="' + task.id + '" aria-label="Меню задачи">⋯</button>' +
+            '<button type="button" class="menu-btn" data-menu-id="' + task.id + '" aria-label="' + escapeHtml(t("planner.tasks.menu")) + '">' +
+              '<svg class="sf-icon" aria-hidden="true"><use href="#sf-ellipsis"></use></svg>' +
+            '</button>' +
             '<div class="row-menu hidden" data-menu-panel="' + task.id + '">' +
-              '<button type="button" class="menu-item" data-action="edit" data-id="' + task.id + '">Редактировать</button>' +
-              '<button type="button" class="menu-item" data-action="delete" data-id="' + task.id + '">Удалить</button>' +
+              '<button type="button" class="menu-item" data-action="edit" data-id="' + task.id + '">' + escapeHtml(t("planner.tasks.edit")) + '</button>' +
+              '<button type="button" class="menu-item" data-action="delete" data-id="' + task.id + '">' + escapeHtml(t("planner.tasks.delete")) + '</button>' +
             '</div>' +
           '</td>' +
         '</tr>'
@@ -311,7 +348,7 @@
     byId("taskRoutine").checked = isRoutineTask(task);
 
     editingTaskId = id;
-    el.taskSubmitBtn.textContent = "Сохранить изменения";
+    el.taskSubmitBtn.textContent = t("planner.tasks.saveEdit");
     el.cancelEditBtn.classList.remove("hidden");
     byId("taskTitle").focus();
   }
@@ -320,7 +357,7 @@
     editingTaskId = null;
     taskFormEl.reset();
     byId("taskRoutine").checked = false;
-    el.taskSubmitBtn.textContent = "Добавить задачу";
+    el.taskSubmitBtn.textContent = t("planner.tasks.add");
     el.cancelEditBtn.classList.add("hidden");
   }
 
@@ -339,28 +376,30 @@
 
   function updateFact() {
     var completed = state.tasks.filter(function (t) { return t.done; }).length;
-    el.factValue.textContent = completed + "/" + state.tasks.length + " выполнено";
+    el.factValue.textContent = t("planner.evening.fact") + ": " + completed + "/" + state.tasks.length + " " + t("planner.evening.completed");
   }
 
   function updateReadiness() {
-    el.readinessValue.textContent = state.readiness == null ? "—" : state.readiness;
+    var value = state.readiness == null ? "—" : state.readiness;
+    el.readinessValue.textContent = t("planner.readiness") + ": " + value;
   }
 
   function updateDayStatus() {
     if (!el.dayStatus) return;
     if (state.evening && state.evening.date === today) {
-      el.dayStatus.textContent = "День закрыт";
+      el.dayStatus.textContent = t("planner.evening.dayClosed");
       return;
     }
-    el.dayStatus.textContent = "День не закрыт";
+    el.dayStatus.textContent = t("planner.evening.dayOpen");
   }
 
   function updateSyncStatus(status) {
+    lastSyncStatus = status;
     if (!el.syncStatus) return;
 
-    if (status === "syncing") el.syncStatus.textContent = "Синхронизация…";
-    if (status === "success") el.syncStatus.textContent = "Данные сохранены";
-    if (status === "error") el.syncStatus.textContent = "Ошибка синхронизации";
+    if (status === "syncing") el.syncStatus.textContent = t("planner.sync.syncing");
+    if (status === "success") el.syncStatus.textContent = t("planner.sync.success");
+    if (status === "error") el.syncStatus.textContent = t("planner.sync.error");
     if (status === "idle") el.syncStatus.textContent = "";
   }
 
@@ -371,7 +410,7 @@
       timestamp: new Date().toISOString(),
       date: today,
       userName: state.userName || "anonymous",
-      readiness: state.readiness ?? null,
+      readiness: state.readiness == null ? null : state.readiness,
       payload: payload
     };
 
@@ -425,6 +464,32 @@
     }
   }
 
+  function migrateSlots() {
+    var legacyMap = {
+      "Утро (рутина)": "planner.slot.morningRoutine",
+      "Утро (фокус)": "planner.slot.morningFocus",
+      "День (операционка)": "planner.slot.dayOps",
+      "Вечер (лёгкие)": "planner.slot.eveningLight",
+      "Без слота": "planner.slot.none",
+      "Перенести на завтра": "planner.slot.postpone",
+      "Перенести или упростить": "planner.slot.simplify"
+    };
+    var changed = false;
+    state.tasks.forEach(function (task) {
+      if (task.slotKey) return;
+      if (task.slot && legacyMap[task.slot]) {
+        task.slotKey = legacyMap[task.slot];
+        delete task.slot;
+        changed = true;
+      } else {
+        task.slotKey = SLOT_KEYS.none;
+        if (task.slot) delete task.slot;
+        changed = true;
+      }
+    });
+    if (changed) saveState();
+  }
+
   function saveState() {
     localStorage.setItem(KEY, JSON.stringify(state));
   }
@@ -455,19 +520,22 @@
   }
 
   function compareTasksForDisplay(a, b) {
-    var bySlot = getSlotRank(a.slot) - getSlotRank(b.slot);
+    var bySlot = getSlotRank(a.slotKey) - getSlotRank(b.slotKey);
     if (bySlot !== 0) return bySlot;
     return b.urgency - a.urgency;
   }
 
-  function getSlotRank(slot) {
-    var value = String(slot || "");
-    if (value.indexOf("Утро") === 0) return 0;
-    if (value.indexOf("День") === 0) return 1;
-    if (value.indexOf("Вечер") === 0) return 2;
-    if (value === "Без слота") return 3;
-    if (value.indexOf("Перенести") === 0) return 4;
-    return 5;
+  function getSlotRank(slotKey) {
+    switch (slotKey) {
+      case SLOT_KEYS.morningRoutine: return 0;
+      case SLOT_KEYS.morningFocus: return 1;
+      case SLOT_KEYS.dayOps: return 2;
+      case SLOT_KEYS.eveningLight: return 3;
+      case SLOT_KEYS.none: return 4;
+      case SLOT_KEYS.postpone:
+      case SLOT_KEYS.simplify: return 5;
+      default: return 6;
+    }
   }
 
   function escapeHtml(text) {

@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upeak — Исследование продуктивности</title>
+    <title data-i18n="meta.landing.title">Upeak — Исследование продуктивности</title>
+    <meta name="description" content="" data-i18n="meta.landing.description">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif;
         }
 
         body {
@@ -96,6 +97,65 @@
             font-weight: 600;
             line-height: 1;
         }
+
+        .sf-icon {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            vertical-align: -0.125em;
+            fill: currentColor;
+        }
+
+        .icon-xl { font-size: 2rem; line-height: 1; }
+        .icon-lg { font-size: 1.5rem; line-height: 1; }
+        .icon-md { font-size: 1.25rem; line-height: 1; }
+
+        .lang-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+            padding: 2px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(26, 54, 93, 0.12);
+            border-radius: 999px;
+        }
+
+        .lang-switch button {
+            border: none;
+            background: transparent;
+            color: rgba(26, 54, 93, 0.65);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 4px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .lang-switch button.is-active {
+            background: rgba(239, 68, 68, 0.9);
+            color: #fff;
+        }
+
+        .lang-switch button:hover:not(.is-active) {
+            color: #1a365d;
+        }
+
+        .hero-logo {
+            width: 144px;
+            height: 144px;
+            border-radius: 28px;
+            object-fit: cover;
+            box-shadow: 0 12px 32px rgba(26, 54, 93, 0.15);
+            margin: 0 auto 1.25rem;
+            display: block;
+        }
+
+        @media (min-width: 768px) {
+            .hero-logo { width: 176px; height: 176px; }
+        }
     </style>
 </head>
 <body>
@@ -105,21 +165,22 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
                     <div class="logo-peak">
-                        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15 32 L20 20 L28 15 L35 25 L35 35 L15 35 Z" fill="#4a6fa5" stroke="#6b8cae" stroke-width="1"/>
-                            <line x1="28" y1="15" x2="28" y2="8" stroke="#ffffff" stroke-width="1.5"/>
-                            <path d="M28 8 L35 10 L28 12 Z" fill="#ef4444"/>
-                        </svg>
+                        <img src="./assets/upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" style="width:32px;height:32px;border-radius:8px;object-fit:cover;display:block">
                     </div>
                     <span class="text-lg font-medium text-gray-800">Upeak</span>
                 </div>
                 <div class="hidden md:flex items-center space-x-6">
-                    <a href="#research" class="text-muted hover:text-gray-800 transition text-sm">Исследование</a>
-                    <a href="#experiment" class="text-muted hover:text-gray-800 transition text-sm">Эксперимент</a>
-                    <a href="#results" class="text-muted hover:text-gray-800 transition text-sm">Результаты</a>
-                    <a href="planner.html" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium">
+                    <a href="#research" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.research">Исследование</a>
+                    <a href="#experiment" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.experiment">Эксперимент</a>
+                    <a href="#results" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.results">Результаты</a>
+                    <a href="planner.html" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium" data-i18n="nav.join">
                         Участвовать
                     </a>
+                    <div class="lang-switch" role="group" data-i18n-aria-label="nav.lang.aria" aria-label="Язык интерфейса">
+                        <svg class="sf-icon" style="margin:0 4px;color:#1a365d;opacity:0.65" aria-hidden="true"><use href="#sf-globe"></use></svg>
+                        <button type="button" data-lang-toggle="ru" aria-pressed="true">RU</button>
+                        <button type="button" data-lang-toggle="en" aria-pressed="false">EN</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -130,29 +191,24 @@
         <div class="max-w-4xl mx-auto text-center fade-in">
             <div class="mb-8">
                 <div class="inline-block">
-                    <svg class="w-24 h-24 mb-6" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M20 80 L50 30 L80 80 Z" fill="#4a6fa5" stroke="#6b8cae" stroke-width="2"/>
-                        <path d="M35 50 L50 30 L65 50 Z" fill="#ffffff" opacity="0.8"/>
-                        <line x1="50" y1="30" x2="50" y2="15" stroke="#ffffff" stroke-width="2"/>
-                        <path d="M50 15 L70 18 L50 21 Z" fill="#ef4444"/>
-                    </svg>
-                    <h2 class="text-2xl font-medium text-gray-800 mb-2">Upeak</h2>
-                    <p class="text-muted text-sm">Исследовательский прототип</p>
+                    <img class="hero-logo" src="./assets/upeak-logo.jpg" alt="Логотип Upeak" data-i18n-alt="hero.logo.alt">
+                    <h2 class="text-2xl font-medium text-gray-800 mb-2" data-i18n="hero.brand">Upeak</h2>
+                    <p class="text-muted text-sm" data-i18n="hero.eyebrow">Исследовательский прототип</p>
                 </div>
             </div>
 
             <h1 class="text-4xl md:text-6xl font-light text-gray-800 mb-6 leading-tight">
-                Почему ты не успеваешь,<br>
-                <span class="font-normal">даже когда планируешь хорошо?</span>
+                <span data-i18n="hero.title.line1">Почему ты не успеваешь,</span><br>
+                <span class="font-normal" data-i18n="hero.title.line2">даже когда планируешь хорошо?</span>
             </h1>
-            <p class="text-lg text-muted mb-8 leading-relaxed max-w-2xl mx-auto">
+            <p class="text-lg text-muted mb-8 leading-relaxed max-w-2xl mx-auto" data-i18n="hero.subtitle">
                 Мы проводим 14-дневный эксперимент, чтобы понять как состояние влияет на твою нагрузку и выполнение задач
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="planner.html" class="btn-primary px-8 py-4 rounded-lg font-medium text-lg">
+                <a href="planner.html" class="btn-primary px-8 py-4 rounded-lg font-medium text-lg" data-i18n="hero.cta.join">
                     Участвовать в эксперименте
                 </a>
-                <button class="btn-research px-8 py-4 rounded-lg font-medium text-lg">
+                <button class="btn-research px-8 py-4 rounded-lg font-medium text-lg" data-i18n="hero.cta.more">
                     Узнать больше
                 </button>
             </div>
@@ -164,36 +220,36 @@
         <div class="max-w-4xl mx-auto">
             <div class="text-center mb-16">
                 <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4">
-                    Люди планируют день одинаково,<br>
-                    но их состояние постоянно меняется
+                    <span data-i18n="problem.title.line1">Люди планируют день одинаково,</span><br>
+                    <span data-i18n="problem.title.line2">но их состояние постоянно меняется</span>
                 </h2>
             </div>
 
             <div class="research-card p-8 mb-8">
                 <div class="grid md:grid-cols-3 gap-8 text-center">
                     <div>
-                        <div class="text-2xl mb-3">📅</div>
-                        <h3 class="text-lg font-medium text-gray-800 mb-2">План</h3>
-                        <p class="text-muted">Одинаковый каждый день</p>
+                        <div class="icon-xl mb-3 text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-calendar"></use></svg></div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2" data-i18n="problem.plan.title">План</h3>
+                        <p class="text-muted" data-i18n="problem.plan.desc">Одинаковый каждый день</p>
                     </div>
                     <div>
-                        <div class="text-2xl mb-3 accent-red">⚠️</div>
-                        <h3 class="text-lg font-medium text-gray-800 mb-2">Реальность</h3>
-                        <p class="text-muted">Разная энергия и стресс</p>
+                        <div class="icon-xl mb-3 accent-red"><svg class="sf-icon" aria-hidden="true"><use href="#sf-warning"></use></svg></div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2" data-i18n="problem.real.title">Реальность</h3>
+                        <p class="text-muted" data-i18n="problem.real.desc">Разная энергия и стресс</p>
                     </div>
                     <div>
-                        <div class="text-2xl mb-3">😔</div>
-                        <h3 class="text-lg font-medium text-gray-800 mb-2">Результат</h3>
-                        <p class="text-muted">Перегруз и усталость</p>
+                        <div class="icon-xl mb-3 text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-sad"></use></svg></div>
+                        <h3 class="text-lg font-medium text-gray-800 mb-2" data-i18n="problem.result.title">Результат</h3>
+                        <p class="text-muted" data-i18n="problem.result.desc">Перегруз и усталость</p>
                     </div>
                 </div>
             </div>
 
             <div class="text-center">
-                <p class="text-xl text-muted mb-4">
+                <p class="text-xl text-muted mb-4" data-i18n="problem.gap">
                     Из-за этого возникает разрыв между планом и возможностями
                 </p>
-                <p class="text-2xl font-medium text-gray-800">
+                <p class="text-2xl font-medium text-gray-800" data-i18n="problem.aim">
                     Мы хотим понять этот механизм
                 </p>
             </div>
@@ -204,31 +260,31 @@
     <section class="py-24 px-6 fade-in">
         <div class="max-w-4xl mx-auto">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4">
+                <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4" data-i18n="research.title">
                     Что мы исследуем
                 </h2>
             </div>
 
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="research-card p-6 text-center">
-                    <div class="text-3xl mb-3">😴</div>
-                    <h3 class="text-lg font-medium text-gray-800 mb-2">Сон</h3>
-                    <p class="text-muted text-sm">→ Продуктивность</p>
+                    <div class="icon-lg mb-3 text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-sleep"></use></svg></div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2" data-i18n="research.sleep">Сон</h3>
+                    <p class="text-muted text-sm" data-i18n="research.sleep.arrow">→ Продуктивность</p>
                 </div>
                 <div class="research-card p-6 text-center">
-                    <div class="text-3xl mb-3">😰</div>
-                    <h3 class="text-lg font-medium text-gray-800 mb-2">Стресс</h3>
-                    <p class="text-muted text-sm">→ Перегруз</p>
+                    <div class="icon-lg mb-3 accent-red"><svg class="sf-icon" aria-hidden="true"><use href="#sf-stress"></use></svg></div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2" data-i18n="research.stress">Стресс</h3>
+                    <p class="text-muted text-sm" data-i18n="research.stress.arrow">→ Перегруз</p>
                 </div>
                 <div class="research-card p-6 text-center">
-                    <div class="text-3xl mb-3">⚡</div>
-                    <h3 class="text-lg font-medium text-gray-800 mb-2">Энергия</h3>
-                    <p class="text-muted text-sm">→ Выполнение задач</p>
+                    <div class="icon-lg mb-3 text-yellow-500"><svg class="sf-icon" aria-hidden="true"><use href="#sf-bolt"></use></svg></div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2" data-i18n="research.energy">Энергия</h3>
+                    <p class="text-muted text-sm" data-i18n="research.energy.arrow">→ Выполнение задач</p>
                 </div>
                 <div class="research-card p-6 text-center">
-                    <div class="text-3xl mb-3">📋</div>
-                    <h3 class="text-lg font-medium text-gray-800 mb-2">План</h3>
-                    <p class="text-muted text-sm">→ Реальность выполнения</p>
+                    <div class="icon-lg mb-3 text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-list"></use></svg></div>
+                    <h3 class="text-lg font-medium text-gray-800 mb-2" data-i18n="research.plan">План</h3>
+                    <p class="text-muted text-sm" data-i18n="research.plan.arrow">→ Реальность выполнения</p>
                 </div>
             </div>
         </div>
@@ -238,33 +294,33 @@
     <section id="experiment" class="py-24 px-6 fade-in">
         <div class="max-w-4xl mx-auto">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4">
+                <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4" data-i18n="experiment.title">
                     Как проходит эксперимент
                 </h2>
             </div>
 
             <div class="research-card p-8 mb-8">
                 <div class="text-center mb-8">
-                    <div class="text-4xl font-light text-gray-800 mb-2">14 дней</div>
-                    <p class="text-muted">для исследования твоих паттернов</p>
+                    <div class="text-4xl font-light text-gray-800 mb-2" data-i18n="experiment.duration">14 дней</div>
+                    <p class="text-muted" data-i18n="experiment.duration.note">для исследования твоих паттернов</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-8">
                     <div class="text-center p-6 border border-gray-300/50 rounded-lg">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Неделя 1</h3>
-                        <p class="text-muted mb-2">Обычная жизнь</p>
-                        <p class="text-sm text-muted">Ты живёшь как обычно, мы просто собираем данные о состоянии и выполнении задач</p>
+                        <h3 class="text-xl font-medium text-gray-800 mb-4" data-i18n="experiment.week1.title">Неделя 1</h3>
+                        <p class="text-muted mb-2" data-i18n="experiment.week1.head">Обычная жизнь</p>
+                        <p class="text-sm text-muted" data-i18n="experiment.week1.desc">Ты живёшь как обычно, мы просто собираем данные о состоянии и выполнении задач</p>
                     </div>
                     <div class="text-center p-6 border border-gray-300/50 rounded-lg">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Неделя 2</h3>
-                        <p class="text-muted mb-2">С трекингом</p>
-                        <p class="text-sm text-muted">Ты отслеживаешь состояние и получаешь рекомендации по нагрузке</p>
+                        <h3 class="text-xl font-medium text-gray-800 mb-4" data-i18n="experiment.week2.title">Неделя 2</h3>
+                        <p class="text-muted mb-2" data-i18n="experiment.week2.head">С трекингом</p>
+                        <p class="text-sm text-muted" data-i18n="experiment.week2.desc">Ты отслеживаешь состояние и получаешь рекомендации по нагрузке</p>
                     </div>
                 </div>
             </div>
 
             <div class="text-center">
-                <p class="text-lg text-muted">
+                <p class="text-lg text-muted" data-i18n="experiment.note">
                     Мы сравниваем поведение и ищем закономерности
                 </p>
             </div>
@@ -275,27 +331,27 @@
     <section id="results" class="py-24 px-6 fade-in">
         <div class="max-w-4xl mx-auto">
             <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4">
+                <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4" data-i18n="results.title">
                     В конце ты увидишь
                 </h2>
             </div>
 
             <div class="space-y-4">
                 <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="text-2xl">📊</div>
-                    <div class="text-lg text-gray-800">Свои паттерны нагрузки</div>
+                    <div class="icon-md text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-chart"></use></svg></div>
+                    <div class="text-lg text-gray-800" data-i18n="results.patterns">Свои паттерны нагрузки</div>
                 </div>
                 <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="text-2xl">⚠️</div>
-                    <div class="text-lg text-gray-800">Когда ты перегружаешь себя</div>
+                    <div class="icon-md accent-red"><svg class="sf-icon" aria-hidden="true"><use href="#sf-warning"></use></svg></div>
+                    <div class="text-lg text-gray-800" data-i18n="results.overload">Когда ты перегружаешь себя</div>
                 </div>
                 <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="text-2xl">📈</div>
-                    <div class="text-lg text-gray-800">Как состояние влияет на выполнение задач</div>
+                    <div class="icon-md text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-trend"></use></svg></div>
+                    <div class="text-lg text-gray-800" data-i18n="results.influence">Как состояние влияет на выполнение задач</div>
                 </div>
                 <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="text-2xl">🎯</div>
-                    <div class="text-lg text-gray-800">Как ты реально работаешь</div>
+                    <div class="icon-md text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-target"></use></svg></div>
+                    <div class="text-lg text-gray-800" data-i18n="results.real">Как ты реально работаешь</div>
                 </div>
             </div>
         </div>
@@ -305,14 +361,14 @@
     <section class="py-24 px-6 fade-in">
         <div class="max-w-3xl mx-auto">
             <div class="research-card p-8 text-center">
-                <div class="text-4xl mb-4">🔬</div>
-                <h2 class="text-2xl font-medium text-gray-800 mb-4">
+                <div class="icon-xl mb-4 text-gray-700 inline-block"><svg class="sf-icon" aria-hidden="true"><use href="#sf-flask"></use></svg></div>
+                <h2 class="text-2xl font-medium text-gray-800 mb-4" data-i18n="disclaimer.title">
                     Важное пояснение
                 </h2>
-                <p class="text-lg text-muted leading-relaxed mb-6">
+                <p class="text-lg text-muted leading-relaxed mb-6" data-i18n="disclaimer.text1">
                     Это не готовый продукт, который уже всё решает.
                 </p>
-                <p class="text-lg text-gray-800 leading-relaxed">
+                <p class="text-lg text-gray-800 leading-relaxed" data-i18n="disclaimer.text2">
                     Это исследование, которое помогает нам понять поведение и построить более точную систему в будущем.
                 </p>
             </div>
@@ -322,18 +378,20 @@
     <!-- SECTION 7: CTA -->
     <section class="py-24 px-6 fade-in">
         <div class="max-w-4xl mx-auto text-center">
-            <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-6">
+            <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-6" data-i18n="cta.title">
                 Присоединиться к исследованию
             </h2>
-            <p class="text-lg text-muted mb-8">
+            <p class="text-lg text-muted mb-8" data-i18n="cta.subtitle">
                 Помоги нам понять, как люди работают на самом деле
             </p>
-            <a href="planner.html" class="btn-primary px-10 py-4 rounded-lg font-medium text-xl">
+            <a href="planner.html" class="btn-primary px-10 py-4 rounded-lg font-medium text-xl" data-i18n="hero.cta.join">
                 Участвовать в эксперименте
             </a>
         </div>
     </section>
 
+    <script src="./icons.js"></script>
+    <script src="./i18n.js"></script>
     <script>
         const observerOptions = {
             threshold: 0.1,
