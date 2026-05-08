@@ -7,6 +7,8 @@
   --accent: #3ee0b8;
   --accent-dim: rgba(62, 224, 184, 0.15);
   --accent-glow: rgba(62, 224, 184, 0.35);
+  --red: #ff4757;
+  --red-dim: rgba(255, 71, 87, 0.15);
   --border: rgba(255, 255, 255, 0.08);
   --font-sans: "DM Sans", system-ui, sans-serif;
   --font-display: "Instrument Serif", Georgia, serif;
@@ -133,6 +135,9 @@ h3 {
   letter-spacing: -0.03em;
   color: var(--text);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .logo:hover {
@@ -801,6 +806,227 @@ h3 {
   opacity: 0.85;
 }
 
+/* Research Visual */
+.research-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 380px;
+}
+
+.mountain-icon {
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.mountain-icon svg {
+  filter: drop-shadow(0 0 20px rgba(62, 224, 184, 0.3));
+}
+
+/* Problem Section */
+.problem-content {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.problem-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.problem-item {
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.problem-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-dim);
+}
+
+.problem-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.problem-item h3 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.problem-item p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.problem-statement {
+  font-size: 1.1rem;
+  color: var(--text);
+  margin: 2rem 0 0;
+  font-style: italic;
+}
+
+/* Research Grid */
+.research-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.research-item {
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.research-item:hover {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+}
+
+.research-icon {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.research-item h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.research-item p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Experiment Timeline */
+.experiment-timeline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  max-width: 800px;
+  margin: 2rem auto 0;
+}
+
+.timeline-item {
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: center;
+  position: relative;
+}
+
+.timeline-days {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.timeline-item h3 {
+  font-size: 1.2rem;
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.timeline-item p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.experiment-note {
+  text-align: center;
+  color: var(--text-muted);
+  margin: 2rem 0 0;
+  font-style: italic;
+}
+
+/* Benefits List */
+.benefits-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.benefit-item {
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.benefit-item:hover {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 1px var(--accent-dim);
+}
+
+.benefit-icon {
+  font-size: 1.5rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.benefit-item h3 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+  color: var(--text);
+}
+
+.benefit-item p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Disclaimer */
+.disclaimer {
+  background: linear-gradient(180deg, transparent 0%, var(--red-dim) 50%, transparent 100%);
+  border-radius: var(--radius-lg);
+  max-width: calc(var(--max) + 3rem);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.disclaimer-content {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.disclaimer-content h2 {
+  color: var(--red);
+  margin-bottom: 1rem;
+}
+
+.disclaimer-content p {
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* Mobile */
 @media (max-width: 900px) {
   .hero-grid {
@@ -829,6 +1055,23 @@ h3 {
   }
 
   .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .problem-list {
+    grid-template-columns: 1fr;
+  }
+
+  .research-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .experiment-timeline {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .benefits-list {
     grid-template-columns: 1fr;
   }
 
