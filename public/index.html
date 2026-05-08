@@ -151,14 +151,33 @@
             object-fit: contain;
             margin: 0 auto 1.25rem;
             display: block;
+            border-radius: 32px;
+            box-shadow: 0 20px 50px rgba(26, 54, 93, 0.15);
         }
 
         @media (min-width: 768px) {
-            .hero-logo { width: 380px; height: 380px; }
+            .hero-logo { width: 380px; height: 380px; border-radius: 40px; }
         }
 
         @media (min-width: 1280px) {
-            .hero-logo { width: 440px; height: 440px; }
+            .hero-logo { width: 440px; height: 440px; border-radius: 48px; }
+        }
+
+        .hero-brand {
+            font-size: 4.5rem;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.03em;
+            color: #1a365d;
+            margin: 0 0 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .hero-brand { font-size: 6rem; }
+        }
+
+        @media (min-width: 1280px) {
+            .hero-brand { font-size: 7.5rem; }
         }
     </style>
 </head>
@@ -169,9 +188,9 @@
             <div class="flex justify-between items-center h-18" style="height:72px">
                 <div class="flex items-center space-x-3">
                     <div class="logo-peak">
-                        <img src="./upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" style="width:56px;height:56px;object-fit:contain;display:block">
+                        <img src="./upeak-logo.jpg" alt="UPeak" data-i18n-alt="hero.logo.alt" style="width:56px;height:56px;object-fit:contain;display:block;border-radius:12px">
                     </div>
-                    <span class="text-lg font-medium text-gray-800">Upeak</span>
+                    <span class="text-lg font-bold text-gray-800">UPeak</span>
                 </div>
                 <div class="hidden md:flex items-center space-x-6">
                     <a href="#research" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.research">Исследование</a>
@@ -195,7 +214,8 @@
         <div class="max-w-4xl mx-auto text-center fade-in">
             <div class="mb-8">
                 <div class="inline-block">
-                    <img class="hero-logo" src="./upeak-logo.jpg" alt="Логотип Upeak" data-i18n-alt="hero.logo.alt">
+                    <img class="hero-logo" src="./upeak-logo.jpg" alt="Логотип UPeak" data-i18n-alt="hero.logo.alt">
+                    <h2 class="hero-brand">UPeak</h2>
                     <p class="text-muted text-sm" data-i18n="hero.eyebrow">Исследовательский прототип</p>
                 </div>
             </div>
