@@ -14,12 +14,12 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', sans-serif;
         }
 
-        html { scroll-padding-top: 80px; }
+        html { scroll-padding-top: 88px; }
         body {
             background: linear-gradient(180deg, #87CEEB 0%, #98D8E8 30%, #B0E0E6 60%, #E0F6FF 100%);
             color: #1a365d;
             overflow-x: hidden;
-            padding-top: 64px;
+            padding-top: 72px;
         }
 
         .research-card {
@@ -82,8 +82,8 @@
         }
 
         .logo-peak {
-            width: 40px;
-            height: 40px;
+            width: 56px;
+            height: 56px;
         }
 
         .accent-red {
@@ -146,17 +146,19 @@
         }
 
         .hero-logo {
-            width: 168px;
-            height: 168px;
-            border-radius: 32px;
-            object-fit: cover;
-            box-shadow: 0 12px 32px rgba(26, 54, 93, 0.15);
+            width: 280px;
+            height: 280px;
+            object-fit: contain;
             margin: 0 auto 1.25rem;
             display: block;
         }
 
         @media (min-width: 768px) {
-            .hero-logo { width: 208px; height: 208px; }
+            .hero-logo { width: 380px; height: 380px; }
+        }
+
+        @media (min-width: 1280px) {
+            .hero-logo { width: 440px; height: 440px; }
         }
     </style>
 </head>
@@ -164,10 +166,10 @@
     <!-- Navigation -->
     <nav class="fixed top-0 w-full nav-blur z-50">
         <div class="max-w-7xl mx-auto px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
+            <div class="flex justify-between items-center h-18" style="height:72px">
                 <div class="flex items-center space-x-3">
                     <div class="logo-peak">
-                        <img src="./upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" style="width:40px;height:40px;border-radius:10px;object-fit:cover;display:block">
+                        <img src="./upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" style="width:56px;height:56px;object-fit:contain;display:block">
                     </div>
                     <span class="text-lg font-medium text-gray-800">Upeak</span>
                 </div>
@@ -194,7 +196,6 @@
             <div class="mb-8">
                 <div class="inline-block">
                     <img class="hero-logo" src="./upeak-logo.jpg" alt="Логотип Upeak" data-i18n-alt="hero.logo.alt">
-                    <h2 class="text-2xl font-medium text-gray-800 mb-2" data-i18n="hero.brand">Upeak</h2>
                     <p class="text-muted text-sm" data-i18n="hero.eyebrow">Исследовательский прототип</p>
                 </div>
             </div>

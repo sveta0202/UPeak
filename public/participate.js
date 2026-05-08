@@ -107,7 +107,7 @@
 
   function getScriptUrl() {
     var url = form.getAttribute("data-script-url") || "";
-    return url && url.indexOf("PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") === -1 ? url : "";
+    return url && url.indexOf("https://script.google.com/macros/s/AKfycbzXYjeLLDni6j1aeWluIUAF3Adpzl-cxtSyjws3LMHfkmtM8v_RibNaCbgyv8EbToX-/exec") === -1 ? url : "";
   }
 
   function buildPayload() {

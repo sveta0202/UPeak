@@ -1,22 +1,7 @@
-/**
- * Upeak — приём заявок с участия и запись в Google Sheets.
- *
- * Деплой: Apps Script → Deploy → New deployment → Web app
- *   • Execute as: Me
- *   • Who has access: Anyone
- * Полученный URL вставьте в public/participate.html в атрибут
- * data-script-url у формы #participateForm.
- *
- * Можно либо привязать скрипт к таблице (Container-bound), либо
- * указать SPREADSHEET_ID ниже, если скрипт standalone.
- */
 
-// ====== НАСТРОЙКИ ======
-// Если оставить пустым и скрипт привязан к таблице — будет использована активная таблица.
 var SPREADSHEET_ID = "";
-// Имя листа, куда писать заявки. Если такого листа нет — будет создан автоматически.
 var SHEET_NAME = "Participants";
-// ========================
+
 
 var HEADERS = [
   "Timestamp",
@@ -144,10 +129,6 @@ function doPost(e) {
   }
 }
 
-/**
- * Ручная инициализация листа (создать таблицу с заголовками).
- * Запустите один раз из редактора Apps Script: Run → setup.
- */
 function setup() {
   var sheet = _getSheet_();
   Logger.log("Sheet ready: " + sheet.getName() + " with " + sheet.getLastRow() + " rows.");
