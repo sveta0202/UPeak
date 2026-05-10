@@ -1,4 +1,4 @@
-﻿# PulseBurn Planner Prototype
+﻿# UPeak Prototype
 
 Это исследовательский прототип планировщика задач по состоянию.
 
@@ -11,12 +11,6 @@
 - Вечерний чек-аут.
 - Синхронизация событий в Google Sheets через Apps Script URL.
 
-## Быстрый запуск
-
-1. Запустить локальный сервер:
-   - двойной клик `start-server.cmd`
-2. Открыть:
-   - `http://127.0.0.1:8080/planner.html`
 
 ## Настройка Google Sheets
 
