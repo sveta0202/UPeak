@@ -149,37 +149,67 @@
             width: auto;
             height: auto;
             max-width: 100%;
-            max-height: 280px;
+            max-height: 175px;
             object-fit: contain;
-            margin: 0 auto 1.25rem;
+            margin: 0;
             display: block;
-            border-radius: 24px;
+            border-radius: 15px;
             box-shadow: 0 20px 50px rgba(26, 54, 93, 0.15);
+            flex-shrink: 0;
         }
 
         @media (min-width: 768px) {
-            .hero-logo { max-height: 380px; border-radius: 32px; }
+            .hero-logo { max-height: 240px; border-radius: 20px; }
         }
 
         @media (min-width: 1280px) {
-            .hero-logo { max-height: 440px; border-radius: 40px; }
+            .hero-logo { max-height: 275px; border-radius: 25px; }
         }
 
         .hero-brand {
-            font-size: 4.5rem;
-            font-weight: 800;
+            font-size: 3rem;
+            font-weight: 900;
             line-height: 1;
             letter-spacing: -0.03em;
             color: #1a365d;
-            margin: 0 0 0.5rem;
+            margin: 0;
         }
 
         @media (min-width: 768px) {
-            .hero-brand { font-size: 6rem; }
+            .hero-brand { font-size: 4.5rem; }
         }
 
         @media (min-width: 1280px) {
-            .hero-brand { font-size: 7.5rem; }
+            .hero-brand { font-size: 5.5rem; }
+        }
+
+        .hero-lockup {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            margin-top: 3rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .hero-lockup {
+                gap: 2rem;
+                margin-top: 4rem;
+                flex-wrap: nowrap;
+            }
+        }
+
+        .hero-lockup-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .hero-eyebrow {
+            margin-top: 0.5rem;
         }
     </style>
 </head>
@@ -212,13 +242,13 @@
     </nav>
 
     <!-- SECTION 1: HERO -->
-    <section class="min-h-screen flex items-center justify-center px-6 relative">
-        <div class="max-w-4xl mx-auto text-center fade-in">
-            <div class="mb-8">
-                <div class="inline-block">
-                    <img class="hero-logo" src="./upeak-logo.jpg" alt="Логотип UPeak" data-i18n-alt="hero.logo.alt">
+    <section class="min-h-screen flex items-center px-6 relative">
+        <div class="max-w-7xl w-full mx-auto fade-in">
+            <div class="hero-lockup">
+                <img class="hero-logo" src="./upeak-logo.jpg" alt="Логотип UPeak" data-i18n-alt="hero.logo.alt">
+                <div class="hero-lockup-text">
                     <h2 class="hero-brand">UPeak</h2>
-                    <p class="text-muted text-sm" data-i18n="hero.eyebrow">Исследовательский прототип</p>
+                    <p class="text-muted text-sm hero-eyebrow" data-i18n="hero.eyebrow">Исследовательский прототип</p>
                 </div>
             </div>
 
@@ -226,10 +256,10 @@
                 <span data-i18n="hero.title.line1">Почему ты не успеваешь,</span><br>
                 <span class="font-normal" data-i18n="hero.title.line2">даже когда планируешь хорошо?</span>
             </h1>
-            <p class="text-lg text-muted mb-8 leading-relaxed max-w-2xl mx-auto" data-i18n="hero.subtitle">
+            <p class="text-lg text-muted mb-8 leading-relaxed max-w-2xl" data-i18n="hero.subtitle">
                 Мы проводим 14-дневный эксперимент, чтобы понять как состояние влияет на твою нагрузку и выполнение задач
             </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <div class="flex flex-col sm:flex-row gap-4">
                 <a href="participate.html" class="btn-primary px-8 py-4 rounded-lg font-medium text-lg" data-i18n="hero.cta.join" data-testid="hero-join">
                     Участвовать в эксперименте
                 </a>
