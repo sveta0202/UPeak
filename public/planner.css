@@ -172,7 +172,7 @@ table {
   margin-top: 14px;
   background: rgba(255, 255, 255, 0.5);
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
 }
 th, td {
   border-bottom: 1px solid var(--line);
@@ -228,6 +228,15 @@ td { color: var(--text); }
 }
 .actions-cell {
   position: relative;
+  overflow: visible;
+}
+.actions-cell:has(.row-menu:not(.hidden)) {
+  z-index: 100;
+}
+.card:has(.row-menu:not(.hidden)),
+.card.menu-open {
+  position: relative;
+  z-index: 100;
 }
 .menu-btn {
   border: 1px solid var(--line);
@@ -245,7 +254,7 @@ td { color: var(--text); }
   position: absolute;
   right: 8px;
   top: 36px;
-  z-index: 5;
+  z-index: 1000;
   min-width: 150px;
   display: flex;
   flex-direction: column;

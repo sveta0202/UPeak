@@ -287,7 +287,11 @@
 
         var shouldOpen = panel.classList.contains("hidden");
         closeAllMenus();
-        if (shouldOpen) panel.classList.remove("hidden");
+        if (shouldOpen) {
+          panel.classList.remove("hidden");
+          var card = panel.closest(".card");
+          if (card) card.classList.add("menu-open");
+        }
       });
     });
 
@@ -334,6 +338,9 @@
   function closeAllMenus() {
     el.taskTableBody.querySelectorAll("div[data-menu-panel]").forEach(function (panel) {
       panel.classList.add("hidden");
+    });
+    document.querySelectorAll(".card.menu-open").forEach(function (card) {
+      card.classList.remove("menu-open");
     });
   }
 
