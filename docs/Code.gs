@@ -8,6 +8,9 @@ var HEADERS = [
   "Name",
   "Phone",
   "Telegram",
+  "Email",
+  "Contact Type",
+  "Contact Value",
   "Language",
   "Source Page",
   "User Agent",
@@ -59,6 +62,15 @@ function _normalizeTelegram_(value) {
   return "@" + v;
 }
 
+var EMAIL_RE = /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/;
+
+function _normalizeEmail_(value) {
+  var v = _sanitize_(value, 120);
+  if (!v) return "";
+  if (!EMAIL_RE.test(v)) return "";
+  return v;
+}
+
 function _parsePayload_(e) {
   // Формат запроса: text/plain с JSON-телом (CORS-friendly для Apps Script).
   // Также поддерживаем application/x-www-form-urlencoded на случай резервного режима.
@@ -80,7 +92,7 @@ function doGet(e) {
   return _jsonOutput_({
     ok: true,
     service: "upeak-participants",
-    version: 1,
+    version: 2,
     sheet: SHEET_NAME
   });
 }
@@ -92,6 +104,7 @@ function doPost(e) {
     var name = _sanitize_(data.name, 120);
     var phone = _sanitize_(data.phone, 32);
     var telegram = _normalizeTelegram_(data.telegram);
+    var email = _normalizeEmail_(data.email);
     var language = _sanitize_(data.language, 8) || "ru";
     var sourcePage = _sanitize_(data.sourcePage, 500);
     var userAgent = _sanitize_(data.userAgent, 500);
@@ -105,12 +118,30 @@ function doPost(e) {
       return _jsonOutput_({ ok: false, error: "phone_invalid" });
     }
 
+    // Derive contactType/contactValue. Prefer client-provided values, else infer.
+    var contactType = _sanitize_(data.contactType, 16);
+    var contactValue = _sanitize_(data.contactValue, 200);
+    if (!contactType) {
+      if (language === "en" && email) {
+        contactType = "email";
+        contactValue = email;
+      } else if (telegram) {
+        contactType = "telegram";
+        contactValue = telegram;
+      }
+    } else if (!contactValue) {
+      contactValue = contactType === "email" ? email : telegram;
+    }
+
     var sheet = _getSheet_();
     var row = [
       new Date(),
       name,
       phone,
       telegram,
+      email,
+      contactType,
+      contactValue,
       language,
       sourcePage,
       userAgent,

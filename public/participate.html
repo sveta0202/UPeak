@@ -259,7 +259,7 @@
                     <p class="form-error" id="phoneError" data-i18n="participate.error.phone" data-testid="participate-phone-error">Укажите корректный телефон (минимум 7 цифр)</p>
                 </div>
 
-                <div class="mb-6">
+                <div class="mb-6" id="telegramField">
                     <label class="form-label" for="telegramInput">
                         <span data-i18n="participate.field.telegram">Telegram</span>
                         <span class="text-muted text-xs ml-1" data-i18n="participate.optional">(необязательно)</span>
@@ -276,6 +276,25 @@
                         data-testid="participate-telegram" />
                     <p class="form-hint" data-i18n="participate.hint.telegram">Можно с @ или без — например, @james123 или james123</p>
                     <p class="form-error" id="telegramError" data-i18n="participate.error.telegram" data-testid="participate-telegram-error">Имя пользователя Telegram содержит недопустимые символы</p>
+                </div>
+
+                <div class="mb-6" id="emailField" style="display:none">
+                    <label class="form-label" for="emailInput">
+                        <span data-i18n="participate.field.email">Email</span>
+                        <span class="text-muted text-xs ml-1" data-i18n="participate.optional">(optional)</span>
+                    </label>
+                    <input
+                        id="emailInput"
+                        name="email"
+                        type="email"
+                        autocomplete="email"
+                        maxlength="120"
+                        class="form-input"
+                        placeholder="you@example.com"
+                        data-i18n-placeholder="participate.placeholder.email"
+                        data-testid="participate-email" />
+                    <p class="form-hint" data-i18n="participate.hint.email">We'll only use it to send you the experiment details.</p>
+                    <p class="form-error" id="emailError" data-i18n="participate.error.email" data-testid="participate-email-error">Please enter a valid email address</p>
                 </div>
 
                 <button type="submit"
