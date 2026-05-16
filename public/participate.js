@@ -105,10 +105,12 @@
     return ok;
   }
 
-  function getScriptUrl() {
-    var url = form.getAttribute("data-script-url") || "";
-    return url && url.indexOf("https://script.google.com/macros/s/AKfycbzXYjeLLDni6j1aeWluIUAF3Adpzl-cxtSyjws3LMHfkmtM8v_RibNaCbgyv8EbToX-/exec") === -1 ? url : "";
-  }
+ function getScriptUrl() {
+  var url = (form.getAttribute("data-script-url") || "").trim();
+  return url === "https://script.google.com/macros/s/AKfycbzXYjeLLDni6j1aeWluIUAF3Adpzl-cxtSyjws3LMHfkmtM8v_RibNaCbgyv8EbToX-/exec"
+    ? url
+    : "";
+}
 
   function buildPayload() {
     var lang = (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function")
