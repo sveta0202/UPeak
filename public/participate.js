@@ -149,7 +149,7 @@
 
   function getScriptUrl() {
   var url = (form.getAttribute("data-script-url") || "").trim();
-  return url === "https://script.google.com/macros/s/AKfycbzXYjeLLDni6j1aeWluIUAF3Adpzl-cxtSyjws3LMHfkmtM8v_RibNaCbgyv8EbToX-/exec"
+  return url === "https://script.google.com/macros/s/AKfycby_2gYWEsq8Jg5GmKKbZzMvLibtaV2GFBp3N_mKAcgfKxJK7O9iMozxgEiMwCzQvJnc/exec"
     ? url
     : "";
   }
