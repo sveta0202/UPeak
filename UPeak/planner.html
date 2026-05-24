@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPeak — планировщик по состоянию</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="app/planner.css" />
+</head>
+<body class="planner-page">
+  <div class="noise" aria-hidden="true"></div>
+
+  <header class="header">
+    <a class="logo" href="index.html">UPeak</a>
+    <nav class="nav nav--planner" aria-label="Планировщик">
+      <span class="nav-current">Прототип планировщика</span>
+    </nav>
+    <div class="header-actions">
+      <a class="btn btn-ghost" href="index.html">На лендинг</a>
+    </div>
+  </header>
+
+  <main class="layout planner-layout">
+    <header class="top">
+      <div>
+        <p class="eyebrow">Research prototype</p>
+        <h1>Планировщик задач по <em>состоянию</em></h1>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>1) Утренний чек-ин состояния</h2>
+      <form id="morningForm" class="grid three">
+        <label>Сон, часов
+          <input type="number" id="sleepHours" min="0" max="14" step="0.5" required />
+        </label>
+        <label>Качество сна (1-5)
+          <input type="number" id="sleepQuality" min="1" max="5" required />
+        </label>
+        <label>Энергия утром (1-5)
+          <input type="number" id="energy" min="1" max="5" required />
+        </label>
+        <label>Самочувствие (1-5)
+          <input type="number" id="wellbeing" min="1" max="5" required />
+        </label>
+        <label>Стресс (1-5)
+          <input type="number" id="stress" min="1" max="5" required />
+        </label>
+        <label>Комментарий
+          <input id="morningNote" placeholder="Коротко: как вы себя чувствуете" />
+        </label>
+        <div class="row full">
+          <button class="btn btn-planner" type="submit">Сохранить чек-ин</button>
+          <strong id="readinessValue">Готовность: —</strong>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>2) Задачи на день</h2>
+      <form id="taskForm" class="grid four">
+        <label>Задача
+          <input id="taskTitle" required placeholder="Например, подготовить презентацию" />
+        </label>
+        <label>Сложность (1-5)
+          <input type="number" id="taskDifficulty" min="1" max="5" required />
+        </label>
+        <label>Срочность (1-5)
+          <input type="number" id="taskUrgency" min="1" max="5" required />
+        </label>
+        <label>Оценка, мин
+          <input type="number" id="taskDuration" min="5" max="360" step="5" required />
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" id="taskRoutine" />
+          <span>Рутина (базовая задача дня)</span>
+        </label>
+        <div class="row full">
+          <button id="taskSubmitBtn" class="btn btn-planner" type="submit">Добавить задачу</button>
+          <button id="cancelEditBtn" class="btn btn-planner secondary hidden" type="button">Отменить редактирование</button>
+          <button id="planBtn" class="btn btn-planner secondary" type="button">Распределить по состоянию</button>
+        </div>
+      </form>
+
+      <p id="planSummary" class="plan-summary muted">План не распределён — учитываются все добавленные задачи.</p>
+      <div id="taskBlocks" class="task-blocks"></div>
+    </section>
+
+    <section class="card">
+      <h2>3) Вечерний итог дня</h2>
+      <form id="eveningForm" class="grid three">
+        <label>Продуктивность (1-5)
+          <input type="number" id="productivity" min="1" max="5" required />
+        </label>
+        <label>Усталость к вечеру (1-5)
+          <input type="number" id="fatigue" min="1" max="5" required />
+        </label>
+        <label>Комментарий
+          <input id="eveningNote" placeholder="Что помогло/мешало" />
+        </label>
+        <div class="row full">
+          <button class="btn btn-planner" type="submit">Закрыть день</button>
+          <strong id="factValue">Факт: 0/0 выполнено</strong>
+        </div>
+        <p id="dayStatus" class="muted full">День не закрыт</p>
+      </form>
+    </section>
+  </main>
+
+  <script src="app/planner.js"></script>
+</body>
+</html>
