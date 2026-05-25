@@ -179,6 +179,74 @@
             border: 1px solid rgba(59, 130, 246, 0.35);
             color: #1e3a8a;
         }
+
+        .survey-question {
+            margin-bottom: 18px;
+        }
+
+        .survey-question:last-child {
+            margin-bottom: 0;
+        }
+
+        .survey-question .form-label {
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .survey-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .survey-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(26, 54, 93, 0.18);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+            font-size: 15px;
+            color: #1a365d;
+        }
+
+        .survey-option:hover {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: rgba(239, 68, 68, 0.35);
+        }
+
+        .survey-option input[type="radio"] {
+            margin-top: 3px;
+            accent-color: #ef4444;
+            flex-shrink: 0;
+        }
+
+        .survey-option.is-selected {
+            border-color: rgba(239, 68, 68, 0.65);
+            background: rgba(254, 226, 226, 0.5);
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+        }
+
+        .survey-question.is-invalid .survey-options {
+            border-radius: 10px;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+        }
+
+        .form-section-divider {
+            border: none;
+            border-top: 1px solid rgba(26, 54, 93, 0.12);
+            margin: 24px 0 20px;
+        }
+
+        @media (max-width: 480px) {
+            .survey-option {
+                font-size: 14px;
+                padding: 9px 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -221,6 +289,80 @@
                   novalidate
                   data-script-url="https://script.google.com/macros/s/AKfycby_2gYWEsq8Jg5GmKKbZzMvLibtaV2GFBp3N_mKAcgfKxJK7O9iMozxgEiMwCzQvJnc/exec"
                   data-testid="participate-form">
+
+                <section class="mb-2" data-testid="participate-survey" aria-labelledby="surveyHeading">
+                    <h2 id="surveyHeading" class="text-lg font-medium text-gray-800 mb-1" data-i18n="participate.survey.title">Несколько коротких вопросов</h2>
+                    <p class="text-muted text-sm mb-4" data-i18n="participate.survey.subtitle">Ответы помогут нам лучше подготовить эксперимент под вас.</p>
+
+                    <div class="survey-question" id="surveyQ1Group" data-question="q1">
+                        <label class="form-label" for="surveyQ1_0">
+                            <span data-i18n="participate.survey.q1.text">Следите ли вы за своим состоянием или здоровьем?</span>
+                            <span class="accent-red">*</span>
+                        </label>
+                        <div class="survey-options" role="radiogroup" aria-labelledby="surveyQ1Label">
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ1" id="surveyQ1_0" value="yes_regularly" data-testid="participate-survey-q1-0" required />
+                                <span data-i18n="participate.survey.q1.opt.yes">Да, регулярно</span>
+                            </label>
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ1" id="surveyQ1_1" value="sometimes" data-testid="participate-survey-q1-1" />
+                                <span data-i18n="participate.survey.q1.opt.sometimes">Иногда</span>
+                            </label>
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ1" id="surveyQ1_2" value="no" data-testid="participate-survey-q1-2" />
+                                <span data-i18n="participate.survey.q1.opt.no">Нет</span>
+                            </label>
+                        </div>
+                        <p class="form-error" id="surveyQ1Error" data-i18n="participate.survey.error.required" data-testid="participate-survey-q1-error">Пожалуйста, выберите вариант ответа</p>
+                    </div>
+
+                    <div class="survey-question" id="surveyQ2Group" data-question="q2">
+                        <label class="form-label" for="surveyQ2_0">
+                            <span data-i18n="participate.survey.q2.text">Используете ли вы что-то для отслеживания: сна, тренировок, нагрузки, продуктивности, самочувствия?</span>
+                            <span class="accent-red">*</span>
+                        </label>
+                        <div class="survey-options" role="radiogroup">
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ2" id="surveyQ2_0" value="yes" data-testid="participate-survey-q2-0" required />
+                                <span data-i18n="participate.survey.q2.opt.yes">Да</span>
+                            </label>
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ2" id="surveyQ2_1" value="no" data-testid="participate-survey-q2-1" />
+                                <span data-i18n="participate.survey.q2.opt.no">Нет</span>
+                            </label>
+                        </div>
+                        <p class="form-error" id="surveyQ2Error" data-i18n="participate.survey.error.required" data-testid="participate-survey-q2-error">Пожалуйста, выберите вариант ответа</p>
+                    </div>
+
+                    <div class="survey-question" id="surveyQ3Group" data-question="q3">
+                        <label class="form-label" for="surveyQ3_0">
+                            <span data-i18n="participate.survey.q3.text">Насколько вам знакомы такие проблемы: перегруз, усталость к концу дня, сложности с планированием, переоценка своих сил?</span>
+                            <span class="accent-red">*</span>
+                        </label>
+                        <div class="survey-options" role="radiogroup">
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ3" id="surveyQ3_0" value="often" data-testid="participate-survey-q3-0" required />
+                                <span data-i18n="participate.survey.q3.opt.often">Часто</span>
+                            </label>
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ3" id="surveyQ3_1" value="sometimes" data-testid="participate-survey-q3-1" />
+                                <span data-i18n="participate.survey.q3.opt.sometimes">Иногда</span>
+                            </label>
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ3" id="surveyQ3_2" value="rarely" data-testid="participate-survey-q3-2" />
+                                <span data-i18n="participate.survey.q3.opt.rarely">Редко</span>
+                            </label>
+                            <label class="survey-option">
+                                <input type="radio" name="surveyQ3" id="surveyQ3_3" value="almost_never" data-testid="participate-survey-q3-3" />
+                                <span data-i18n="participate.survey.q3.opt.almostNever">Практически нет</span>
+                            </label>
+                        </div>
+                        <p class="form-error" id="surveyQ3Error" data-i18n="participate.survey.error.required" data-testid="participate-survey-q3-error">Пожалуйста, выберите вариант ответа</p>
+                    </div>
+                </section>
+
+                <hr class="form-section-divider" />
+
                 <div class="mb-4">
                     <label class="form-label" for="nameInput">
                         <span data-i18n="participate.field.name">Имя</span>

@@ -18,6 +18,40 @@
   var telegramError = document.getElementById("telegramError");
   var emailError = document.getElementById("emailError");
 
+  var SURVEY_QUESTIONS = [
+    { key: "q1", name: "surveyQ1", groupId: "surveyQ1Group", errorId: "surveyQ1Error", textKey: "participate.survey.q1.text" },
+    { key: "q2", name: "surveyQ2", groupId: "surveyQ2Group", errorId: "surveyQ2Error", textKey: "participate.survey.q2.text" },
+    { key: "q3", name: "surveyQ3", groupId: "surveyQ3Group", errorId: "surveyQ3Error", textKey: "participate.survey.q3.text" }
+  ];
+
+  // Per-page-load session/correlation ID. We deliberately do not persist it across
+  // reloads to keep behavior sandbox-friendly and avoid expanding storage usage.
+  function generateSessionId() {
+    try {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return window.crypto.randomUUID();
+      }
+      if (window.crypto && window.crypto.getRandomValues) {
+        var buf = new Uint8Array(16);
+        window.crypto.getRandomValues(buf);
+        buf[6] = (buf[6] & 0x0f) | 0x40;
+        buf[8] = (buf[8] & 0x3f) | 0x80;
+        var hex = [];
+        for (var i = 0; i < buf.length; i++) {
+          var h = buf[i].toString(16);
+          if (h.length < 2) h = "0" + h;
+          hex.push(h);
+        }
+        return hex[0] + hex[1] + hex[2] + hex[3] + "-" + hex[4] + hex[5] + "-" +
+          hex[6] + hex[7] + "-" + hex[8] + hex[9] + "-" +
+          hex[10] + hex[11] + hex[12] + hex[13] + hex[14] + hex[15];
+      }
+    } catch (e) {}
+    return "sid-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
+  var SESSION_ID = generateSessionId();
+
   function getLang() {
     if (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function") {
       return window.UpeakI18n.getLang();
@@ -48,11 +82,34 @@
     }
   }
 
+  function getSurveyValue(name) {
+    var checked = form.querySelector('input[name="' + name + '"]:checked');
+    return checked ? checked.value : "";
+  }
+
+  function setSurveyError(question, key, fallback) {
+    var group = document.getElementById(question.groupId);
+    var errorEl = document.getElementById(question.errorId);
+    if (!group || !errorEl) return;
+    if (key) {
+      errorEl.setAttribute("data-i18n", key);
+      errorEl.textContent = t(key, fallback || "");
+      errorEl.classList.add("is-visible");
+      group.classList.add("is-invalid");
+      group.setAttribute("aria-invalid", "true");
+    } else {
+      errorEl.classList.remove("is-visible");
+      group.classList.remove("is-invalid");
+      group.removeAttribute("aria-invalid");
+    }
+  }
+
   function clearFieldErrors() {
     setFieldError(nameInput, nameError, null);
     setFieldError(phoneInput, phoneError, null);
     setFieldError(telegramInput, telegramError, null);
     setFieldError(emailInput, emailError, null);
+    SURVEY_QUESTIONS.forEach(function (q) { setSurveyError(q, null); });
   }
 
   function showBanner(kind, key, fallback) {
@@ -112,6 +169,14 @@
     var ok = true;
     var lang = getLang();
 
+    // Survey first — the user must answer all three.
+    SURVEY_QUESTIONS.forEach(function (q) {
+      if (!getSurveyValue(q.name)) {
+        setSurveyError(q, "participate.survey.error.required", "Пожалуйста, выберите вариант ответа");
+        ok = false;
+      }
+    });
+
     var name = (nameInput.value || "").trim();
     if (!name) {
       setFieldError(nameInput, nameError, "participate.error.name", "Пожалуйста, укажите имя");
@@ -154,6 +219,32 @@
     : "";
   }
 
+  function buildSurveyPayload() {
+    // Send stable English answer codes plus localized labels (current language)
+    // so the sheet can render readable answers even without a separate lookup.
+    var lang = getLang();
+    var survey = {};
+    SURVEY_QUESTIONS.forEach(function (q) {
+      var value = getSurveyValue(q.name);
+      var optionEl = value ? form.querySelector('input[name="' + q.name + '"][value="' + value + '"]') : null;
+      var label = "";
+      if (optionEl) {
+        var textSpan = optionEl.parentNode && optionEl.parentNode.querySelector("[data-i18n]");
+        if (textSpan) {
+          var labelKey = textSpan.getAttribute("data-i18n");
+          label = t(labelKey, textSpan.textContent || "");
+        }
+      }
+      survey[q.key] = {
+        question: t(q.textKey, ""),
+        answer: value,
+        answerLabel: label,
+        language: lang
+      };
+    });
+    return survey;
+  }
+
   function buildPayload() {
     var lang = getLang();
     var telegramVal = "";
@@ -176,6 +267,7 @@
     }
 
     return {
+      sessionId: SESSION_ID,
       name: (nameInput.value || "").trim(),
       phone: normalizePhone(phoneInput.value),
       telegram: telegramVal,
@@ -185,7 +277,8 @@
       language: lang,
       sourcePage: window.location.href,
       userAgent: navigator.userAgent || "",
-      submittedAt: new Date().toISOString()
+      submittedAt: new Date().toISOString(),
+      survey: buildSurveyPayload()
     };
   }
 
@@ -238,6 +331,10 @@
         if (result.ok && (!result.parsed || result.parsed.ok !== false)) {
           showBanner("success", "participate.status.success", "Спасибо! Мы получили вашу заявку.");
           form.reset();
+          // Clear visual selection state on radio option labels after reset.
+          document.querySelectorAll(".survey-option.is-selected").forEach(function (el) {
+            el.classList.remove("is-selected");
+          });
         } else {
           var serverMsg = result.parsed && result.parsed.error ? String(result.parsed.error) : "";
           showBanner("error", "participate.status.error", "Не удалось отправить заявку. Попробуйте ещё раз.");
@@ -264,6 +361,23 @@
           : emailError;
         setFieldError(input, errId, null);
       }
+    });
+  });
+
+  // Radio change: clear group error and toggle visual selected state.
+  SURVEY_QUESTIONS.forEach(function (q) {
+    var radios = form.querySelectorAll('input[name="' + q.name + '"]');
+    radios.forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        setSurveyError(q, null);
+        radios.forEach(function (r) {
+          var label = r.closest && r.closest(".survey-option");
+          if (label) {
+            if (r.checked) label.classList.add("is-selected");
+            else label.classList.remove("is-selected");
+          }
+        });
+      });
     });
   });
 

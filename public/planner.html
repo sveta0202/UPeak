@@ -87,6 +87,7 @@
       <table>
         <thead>
           <tr>
+            <th data-i18n="planner.tasks.col.order">№</th>
             <th data-i18n="planner.tasks.col.status">Статус</th>
             <th data-i18n="planner.tasks.col.title">Задача</th>
             <th data-i18n="planner.tasks.col.diff">Сложн.</th>
@@ -98,10 +99,29 @@
         </thead>
         <tbody id="taskTableBody"></tbody>
       </table>
+      <p class="muted hint" data-i18n="planner.tasks.reorderHint">Перетаскивайте задачи или используйте стрелки ↑/↓, чтобы выстроить удобный порядок.</p>
+    </section>
+
+    <section class="card" id="scheduledCard">
+      <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-calendar"></use></svg></span><span data-i18n="planner.scheduled.title">3) Запланированные на завтра</span></h2>
+      <p class="muted" data-i18n="planner.scheduled.hint">Задачи, которые после распределения по состоянию помечены как «перенести на завтра». Утром следующего дня они автоматически вернутся в основной список.</p>
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="planner.scheduled.col.title">Задача</th>
+            <th data-i18n="planner.scheduled.col.diff">Сложн.</th>
+            <th data-i18n="planner.scheduled.col.urg">Срочн.</th>
+            <th data-i18n="planner.scheduled.col.min">Мин</th>
+            <th data-i18n="planner.scheduled.col.date">Дата возврата</th>
+            <th data-i18n="planner.scheduled.col.actions">Действия</th>
+          </tr>
+        </thead>
+        <tbody id="scheduledTableBody"></tbody>
+      </table>
     </section>
 
     <section class="card">
-      <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-chart"></use></svg></span><span data-i18n="planner.evening.title">3) Вечерний итог дня</span></h2>
+      <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-chart"></use></svg></span><span data-i18n="planner.evening.title">4) Вечерний итог дня</span></h2>
       <form id="eveningForm" class="grid three">
         <label><span data-i18n="planner.evening.productivity">Продуктивность (1-5)</span>
           <input type="number" id="productivity" min="1" max="5" required />

@@ -290,3 +290,63 @@ td { color: var(--text); }
   font-size: 14px;
   color: var(--muted);
 }
+.hint { margin-top: 8px; font-size: 12px; }
+.order-cell {
+  white-space: nowrap;
+  width: 1%;
+  text-align: center;
+}
+.order-btn {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 6px;
+  width: 24px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+}
+.order-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.order-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.order-index {
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 4px;
+}
+.drag-handle {
+  display: inline-block;
+  color: rgba(26, 54, 93, 0.35);
+  cursor: grab;
+  margin-right: 6px;
+  font-weight: 600;
+  letter-spacing: -2px;
+}
+tr.task-row {
+  transition: background 0.15s, transform 0.15s;
+}
+tr.task-row.dragging {
+  opacity: 0.6;
+  background: rgba(239, 68, 68, 0.05);
+}
+tr.task-row.drop-target {
+  background: rgba(239, 68, 68, 0.08);
+  box-shadow: inset 0 2px 0 rgba(239, 68, 68, 0.6);
+}
+#scheduledCard .btn-icon {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+#scheduledCard table {
+  margin-top: 8px;
+}

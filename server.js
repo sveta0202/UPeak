@@ -13,6 +13,10 @@ const ALLOWED_EVENT_TYPES = new Set([
   "task_edited",
   "task_deleted",
   "task_toggled",
+  "task_reordered",
+  "scheduled_added",
+  "scheduled_restored",
+  "scheduled_deleted",
   "plan_generated",
   "routine_activated",
   "evening_checkout"
@@ -32,8 +36,14 @@ function sanitizeEvent(input) {
     eventType: sanitizeString(input.eventType, 100),
     timestamp: sanitizeString(input.timestamp, 100),
     date: sanitizeString(input.date, 50),
+    sessionId: sanitizeString(input.sessionId, 64),
     userName: sanitizeString(input.userName || "anonymous", 120),
+    language: sanitizeString(input.language, 8),
+    sourcePage: sanitizeString(input.sourcePage, 200),
     readiness: Number.isFinite(Number(input.readiness)) ? Number(input.readiness) : null,
+    tasksCount: Number.isFinite(Number(input.tasksCount)) ? Number(input.tasksCount) : null,
+    doneCount: Number.isFinite(Number(input.doneCount)) ? Number(input.doneCount) : null,
+    scheduledCount: Number.isFinite(Number(input.scheduledCount)) ? Number(input.scheduledCount) : null,
     payload: typeof input.payload === "object" && input.payload !== null ? input.payload : {}
   };
 }
