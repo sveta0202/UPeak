@@ -214,7 +214,7 @@
 
   function getScriptUrl() {
   var url = (form.getAttribute("data-script-url") || "").trim();
-  return url === "https://script.google.com/macros/s/AKfycby_2gYWEsq8Jg5GmKKbZzMvLibtaV2GFBp3N_mKAcgfKxJK7O9iMozxgEiMwCzQvJnc/exec"
+  return url === "https://script.google.com/macros/s/AKfycbzylUuFiJ-9XKOxevRMVD_d9-Y5hXUSTjNB_dsCAaT1LfpD2n-j4qhyX5nUJM6HIoHe/exec"
     ? url
     : "";
   }
