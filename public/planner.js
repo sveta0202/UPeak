@@ -12,10 +12,18 @@
     dayStatus: byId("dayStatus"),
     taskSubmitBtn: byId("taskSubmitBtn"),
     cancelEditBtn: byId("cancelEditBtn"),
-    syncStatus: byId("syncStatus")
+    syncStatus: byId("syncStatus"),
+    participantIdForm: byId("participantIdForm"),
+    participantIdInput: byId("participantIdInput"),
+    participantIdSaveBtn: byId("participantIdSaveBtn"),
+    participantIdChangeBtn: byId("participantIdChangeBtn"),
+    participantIdStatus: byId("participantIdStatus")
   };
   var editingTaskId = null;
   var lastSyncStatus = "idle";
+  // ID считается подтверждённым только после успешной проверки в таблице
+  // participates. Без него планировщик работает локально, но не синхронизирует.
+  var participantIdLocked = false;
 
   function t(key) {
     if (window.UpeakI18n && typeof window.UpeakI18n.t === "function") {
@@ -44,6 +52,7 @@
   updateReadiness();
   updateDayStatus();
   updateSyncStatus("idle");
+  setupParticipantId();
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(function () {
@@ -53,6 +62,7 @@
       updateReadiness();
       updateDayStatus();
       updateSyncStatus(lastSyncStatus);
+      refreshParticipantIdStatus();
       el.taskSubmitBtn.textContent = editingTaskId ? t("planner.tasks.saveEdit") : t("planner.tasks.add");
     });
   }
@@ -188,13 +198,18 @@
     var kept = [];
 
     sorted.forEach(function (task) {
+      var load = task.difficulty + Math.ceil(task.duration / 45);
+
+      // Рутина всегда остаётся в дне и идёт в начало (утренний слот),
+      // но её нагрузка тоже учитывается в бюджете дня — иначе распределение
+      // по состоянию игнорирует базовые задачи.
       if (isRoutineTask(task)) {
         task.slotKey = SLOT_KEYS.morningRoutine;
+        remaining -= load;
         kept.push(task);
         return;
       }
 
-      var load = task.difficulty + Math.ceil(task.duration / 45);
       var isUrgent = Number(task.urgency) >= 4;
       var tooHeavy = (readiness < 45 && task.difficulty >= 4) || task.duration >= 180;
       var noBudget = remaining < load;
@@ -216,6 +231,10 @@
       remaining -= load;
       kept.push(task);
     });
+
+    // Распределение задаёт новый порядок по слотам, поэтому сбрасываем
+    // флаг ручной сортировки — после этого сортировка идёт по слотам.
+    state.manualOrder = false;
 
     // After distribution, важные/срочные вверху, рутина — в начале дня.
     kept.sort(compareTasksForDisplay);
@@ -306,7 +325,6 @@
     }
 
     var displayTasks = state.tasks.slice().sort(compareTasksForDisplay);
-    var total = displayTasks.length;
 
     el.taskTableBody.innerHTML = displayTasks.map(function (task, idx) {
       var isRoutine = isRoutineTask(task);
@@ -315,15 +333,11 @@
       return (
         '<tr class="task-row" draggable="true" data-task-id="' + task.id + '">' +
           '<td class="order-cell">' +
-            '<button type="button" class="order-btn" data-order-action="up" data-id="' + task.id + '" ' +
-              (idx === 0 ? 'disabled' : '') + ' aria-label="' + escapeHtml(t("planner.tasks.moveUp")) + '">↑</button>' +
             '<span class="order-index">' + (idx + 1) + '</span>' +
-            '<button type="button" class="order-btn" data-order-action="down" data-id="' + task.id + '" ' +
-              (idx === total - 1 ? 'disabled' : '') + ' aria-label="' + escapeHtml(t("planner.tasks.moveDown")) + '">↓</button>' +
           '</td>' +
           '<td><input type="checkbox" data-id="' + task.id + '" ' + (task.done ? "checked" : "") + '></td>' +
           '<td class="' + (task.done ? "task-done" : "") + '">' +
-            '<span class="drag-handle" aria-hidden="true">⋮⋮</span>' +
+            '<span class="drag-handle" role="img" title="' + escapeHtml(t("planner.tasks.dragHandle")) + '" aria-label="' + escapeHtml(t("planner.tasks.dragHandle")) + '">⋮⋮</span>' +
             '<span class="task-title">' + escapeHtml(cleanTaskTitle(task.title)) + '</span>' +
             (isRoutine ? ' <span class="routine-chip">' + escapeHtml(t("planner.tasks.routineChip")) + '</span>' : '') +
           '</td>' +
@@ -489,14 +503,6 @@
       });
     });
 
-    el.taskTableBody.querySelectorAll("button[data-order-action]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var dir = btn.getAttribute("data-order-action");
-        var id = btn.getAttribute("data-id");
-        moveTask(id, dir === "up" ? -1 : 1);
-      });
-    });
-
     document.addEventListener("click", function (event) {
       if (!event.target.closest("td.actions-cell")) {
         closeAllMenus();
@@ -504,10 +510,18 @@
     }, { once: true });
   }
 
-  // Drag-and-drop reorder for the main task list.
+  // Drag-and-drop reorder for the main task list. Перетаскивание — единственный
+  // способ менять порядок (кнопки-стрелки удалены). Позиция вставки зависит от
+  // того, в верхнюю или нижнюю половину целевой строки навели курсор.
   function bindReorder() {
     var rows = el.taskTableBody.querySelectorAll("tr.task-row");
     var dragId = null;
+
+    function clearTargets() {
+      rows.forEach(function (r) {
+        r.classList.remove("drop-before", "drop-after");
+      });
+    }
 
     rows.forEach(function (row) {
       row.addEventListener("dragstart", function (e) {
@@ -520,56 +534,61 @@
       });
       row.addEventListener("dragend", function () {
         row.classList.remove("dragging");
-        rows.forEach(function (r) { r.classList.remove("drop-target"); });
+        clearTargets();
         dragId = null;
       });
       row.addEventListener("dragover", function (e) {
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-        row.classList.add("drop-target");
+        var targetId = row.getAttribute("data-task-id");
+        if (!dragId || dragId === targetId) return;
+        clearTargets();
+        row.classList.add(isBefore(e, row) ? "drop-before" : "drop-after");
       });
       row.addEventListener("dragleave", function () {
-        row.classList.remove("drop-target");
+        row.classList.remove("drop-before", "drop-after");
       });
       row.addEventListener("drop", function (e) {
         e.preventDefault();
-        row.classList.remove("drop-target");
         var targetId = row.getAttribute("data-task-id");
+        var before = isBefore(e, row);
+        clearTargets();
         if (!dragId || dragId === targetId) return;
-        reorderTasksTo(dragId, targetId);
+        reorderTask(dragId, targetId, before);
       });
     });
   }
 
-  function reorderTasksTo(sourceId, targetId) {
-    var displayed = state.tasks.slice().sort(compareTasksForDisplay);
-    var fromIdx = displayed.findIndex(function (t) { return t.id === sourceId; });
-    var toIdx = displayed.findIndex(function (t) { return t.id === targetId; });
-    if (fromIdx < 0 || toIdx < 0) return;
-
-    var moved = displayed.splice(fromIdx, 1)[0];
-    displayed.splice(toIdx, 0, moved);
-    displayed.forEach(function (task, idx) { task.order = idx; });
-    state.tasks = displayed;
-    saveState();
-    renderTasks();
-    sync("task_reordered", { id: sourceId, position: toIdx, total: displayed.length });
+  function isBefore(e, row) {
+    var rect = row.getBoundingClientRect();
+    return (e.clientY - rect.top) < rect.height / 2;
   }
 
-  function moveTask(id, delta) {
+  // Перестраиваем порядок по текущему отображаемому списку, затем
+  // переписываем поле order для всех задач, чтобы ручной порядок сохранялся.
+  function reorderTask(sourceId, targetId, insertBefore) {
     var displayed = state.tasks.slice().sort(compareTasksForDisplay);
-    var idx = displayed.findIndex(function (t) { return t.id === id; });
-    if (idx < 0) return;
-    var newIdx = idx + delta;
-    if (newIdx < 0 || newIdx >= displayed.length) return;
-    var tmp = displayed[idx];
-    displayed[idx] = displayed[newIdx];
-    displayed[newIdx] = tmp;
-    displayed.forEach(function (task, i) { task.order = i; });
+    var fromIdx = displayed.findIndex(function (t) { return t.id === sourceId; });
+    if (fromIdx < 0) return;
+
+    var moved = displayed.splice(fromIdx, 1)[0];
+    var toIdx = displayed.findIndex(function (t) { return t.id === targetId; });
+    if (toIdx < 0) {
+      displayed.push(moved);
+    } else {
+      displayed.splice(insertBefore ? toIdx : toIdx + 1, 0, moved);
+    }
+
+    displayed.forEach(function (task, idx) { task.order = idx; });
+    state.manualOrder = true;
     state.tasks = displayed;
     saveState();
     renderTasks();
-    sync("task_reordered", { id: id, position: newIdx, total: displayed.length });
+    sync("task_reordered", {
+      id: sourceId,
+      position: displayed.findIndex(function (t) { return t.id === sourceId; }),
+      total: displayed.length
+    });
   }
 
   function postponeTask(id) {
@@ -672,12 +691,21 @@
   }
 
   function sync(eventType, payload) {
+    // Без подтверждённого ID участника данные не уходят в основную таблицу —
+    // иначе строки нельзя отфильтровать по конкретному пользователю.
+    if (!participantIdLocked || !state.participantId) {
+      updateSyncStatus("idle");
+      showParticipantIdStatus("info", t("planner.id.required"));
+      return;
+    }
+
     var body = {
       source: "pulseburn-planner",
       eventType: eventType,
       timestamp: new Date().toISOString(),
       date: today,
       sessionId: getSessionId(),
+      participantId: state.participantId,
       userName: state.userName || "anonymous",
       readiness: state.readiness == null ? null : state.readiness,
       tasksCount: state.tasks.length,
@@ -708,6 +736,110 @@
       });
   }
 
+  // ===== ID участника =====
+
+  function normalizeParticipantId(value) {
+    return String(value || "").trim().toUpperCase().slice(0, 40);
+  }
+
+  function showParticipantIdStatus(kind, message) {
+    if (!el.participantIdStatus) return;
+    el.participantIdStatus.textContent = message || "";
+    el.participantIdStatus.className = "participant-id-status" + (kind ? " is-" + kind : "");
+  }
+
+  function refreshParticipantIdStatus() {
+    if (!el.participantIdStatus) return;
+    if (participantIdLocked && state.participantId) {
+      showParticipantIdStatus("ok", t("planner.id.saved"));
+    } else if (state.participantId) {
+      showParticipantIdStatus("info", t("planner.id.required"));
+    } else {
+      showParticipantIdStatus("", "");
+    }
+  }
+
+  function applyParticipantIdLockUI() {
+    if (!el.participantIdInput) return;
+    if (participantIdLocked) {
+      el.participantIdInput.value = state.participantId;
+      el.participantIdInput.setAttribute("readonly", "readonly");
+      el.participantIdSaveBtn.classList.add("hidden");
+      el.participantIdChangeBtn.classList.remove("hidden");
+    } else {
+      el.participantIdInput.removeAttribute("readonly");
+      el.participantIdSaveBtn.classList.remove("hidden");
+      el.participantIdChangeBtn.classList.add("hidden");
+    }
+  }
+
+  function setupParticipantId() {
+    if (!el.participantIdForm) return;
+
+    // Повторный заход / обновление: восстанавливаем сохранённый и подтверждённый ID.
+    if (state.participantId) {
+      participantIdLocked = true;
+      el.participantIdInput.value = state.participantId;
+    }
+    applyParticipantIdLockUI();
+    refreshParticipantIdStatus();
+
+    el.participantIdForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (participantIdLocked) return;
+
+      var id = normalizeParticipantId(el.participantIdInput.value);
+      if (!id) {
+        showParticipantIdStatus("err", t("planner.id.empty"));
+        return;
+      }
+
+      el.participantIdSaveBtn.disabled = true;
+      showParticipantIdStatus("info", t("planner.id.checking"));
+
+      validateParticipantId(id)
+        .then(function (result) {
+          if (result && result.exists) {
+            state.participantId = id;
+            participantIdLocked = true;
+            saveState();
+            applyParticipantIdLockUI();
+            showParticipantIdStatus("ok", t("planner.id.saved"));
+          } else {
+            showParticipantIdStatus("err", t("planner.id.notFound"));
+          }
+        })
+        .catch(function () {
+          showParticipantIdStatus("err", t("planner.id.error"));
+        })
+        .then(function () {
+          el.participantIdSaveBtn.disabled = false;
+        });
+    });
+
+    el.participantIdChangeBtn.addEventListener("click", function () {
+      participantIdLocked = false;
+      applyParticipantIdLockUI();
+      showParticipantIdStatus("info", t("planner.id.locked"));
+      el.participantIdInput.focus();
+      el.participantIdInput.select();
+    });
+  }
+
+  function validateParticipantId(id) {
+    return fetch("/api/participant/lookup?id=" + encodeURIComponent(id), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    })
+      .then(function (response) {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function (data) {
+        return { exists: !!(data && (data.exists || (data.upstream && data.upstream.exists))) };
+      });
+  }
+
   function getSessionId() {
     if (state.sessionId) return state.sessionId;
     state.sessionId = "s_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -730,7 +862,7 @@
               if (task.order == null) task.order = idx;
             });
             return Object.assign(
-              { userName: "", readiness: null, tasks: [], scheduled: [], lastRoutineResetDate: null, sessionId: null },
+              { userName: "", readiness: null, tasks: [], scheduled: [], lastRoutineResetDate: null, sessionId: null, manualOrder: false, participantId: "" },
               legacy
             );
           } catch (_e) {}
@@ -741,7 +873,9 @@
           tasks: [],
           scheduled: [],
           lastRoutineResetDate: null,
-          sessionId: null
+          sessionId: null,
+          manualOrder: false,
+          participantId: ""
         };
       }
 
@@ -749,6 +883,8 @@
       if (!parsed.lastRoutineResetDate) parsed.lastRoutineResetDate = null;
       if (!Array.isArray(parsed.tasks)) parsed.tasks = [];
       if (!Array.isArray(parsed.scheduled)) parsed.scheduled = [];
+      if (typeof parsed.manualOrder !== "boolean") parsed.manualOrder = false;
+      if (typeof parsed.participantId !== "string") parsed.participantId = "";
       parsed.tasks.forEach(function (task, idx) { if (task.order == null) task.order = idx; });
       return parsed;
     } catch (e) {
@@ -758,7 +894,9 @@
         tasks: [],
         scheduled: [],
         lastRoutineResetDate: null,
-        sessionId: null
+        sessionId: null,
+        manualOrder: false,
+        participantId: ""
       };
     }
   }
@@ -842,13 +980,21 @@
 
   // Display order:
   // 1) routine tasks first (start of day),
-  // 2) by slot rank (morning focus, day ops, evening light, simplify),
-  // 3) by manual order set via drag/up-down.
+  // 2) если пользователь вручную перетаскивал задачи (state.manualOrder),
+  //    ручной порядок важнее слотов — иначе перетаскивание «не работает»,
+  //    потому что сортировка по слотам возвращала задачи на место;
+  // 3) иначе — по слоту (утро/день/вечер), затем по order и срочности.
   function compareTasksForDisplay(a, b) {
     if (isRoutineTask(a) !== isRoutineTask(b)) return isRoutineTask(a) ? -1 : 1;
+
+    var ao = Number(a.order); var bo = Number(b.order);
+    if (state.manualOrder) {
+      if (Number.isFinite(ao) && Number.isFinite(bo) && ao !== bo) return ao - bo;
+      return (Number(b.urgency) || 0) - (Number(a.urgency) || 0);
+    }
+
     var bySlot = getSlotRank(a.slotKey) - getSlotRank(b.slotKey);
     if (bySlot !== 0) return bySlot;
-    var ao = Number(a.order); var bo = Number(b.order);
     if (Number.isFinite(ao) && Number.isFinite(bo) && ao !== bo) return ao - bo;
     return (Number(b.urgency) || 0) - (Number(a.urgency) || 0);
   }

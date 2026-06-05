@@ -12,18 +12,42 @@
 - Синхронизация событий в Google Sheets через Apps Script URL.
 
 
+## Локальный запуск
+
+См. подробную инструкцию: [`docs/localhost-setup.md`](docs/localhost-setup.md).
+
+Кратко:
+
+```bash
+npm install
+npm start          # http://localhost:3000
+```
+
+Страницы: `/` (лендинг), `/participate.html` (регистрация), `/planner.html`
+(планировщик), `/api/health` (проверка). Фронтенд ходит на API по относительным
+путям, поэтому проект работает и на localhost, и на Railway.
+
 ## Настройка Google Sheets
 
-1. Открой нужную Google Sheet (таблица уже может существовать).
-2. Открой `Extensions -> Apps Script`.
-3. Вставь код из `docs/google-apps-script.gs`.
-4. В начале файла проверь `SPREADSHEET_ID` — это ID из ссылки на таблицу.
-5. Нажми `Deploy -> New deployment`.
-6. Тип: `Web app`.
-7. Execute as: `Me`.
-8. Who has access: `Anyone`.
-9. Скопируй URL вида `https://script.google.com/macros/s/.../exec`.
-10. Вставь этот URL в дефолтный webhook в `app/planner.js` (или временно верни поле URL в UI).
+См. [`docs/google-sheets-setup.md`](docs/google-sheets-setup.md).
+
+В проекте две таблицы со своими Apps Script деплоями:
+
+- регистрация — `docs/CodeREG.gs` (таблица `Participants`);
+- планировщик — `docs/CodeAPP.gs` (таблица `PlannerEvents`).
+
+URL деплоев задаются переменными окружения `REGISTRATION_APPS_SCRIPT_URL` и
+`PLANNER_APPS_SCRIPT_URL` (см. `.env.example`). Браузер обращается не напрямую к
+Apps Script, а к прокси (`/api/register`, `/api/events`,
+`/api/participant/lookup`).
+
+## Привязка ID участника
+
+После регистрации участнику присваивается ID (`UP-000001`) — он показывается на
+странице и хранится в первом столбце таблицы `Participants`. В шапке планировщика
+есть поле «Мой ID» с кнопками «Сохранить» и «Изменить ID»: после проверки ID в
+таблице регистрации все события планировщика пишутся в `PlannerEvents` с этим
+`Participant ID`, и таблицу можно фильтровать по пользователю.
 
 ## Формат события, которое отправляется
 

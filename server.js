@@ -4,8 +4,19 @@ const path = require("path");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL;
-const APPS_SCRIPT_SHARED_TOKEN = process.env.APPS_SCRIPT_SHARED_TOKEN || "";
+// --- Apps Script endpoints ---------------------------------------------------
+// Планировщик (страница /planner.html) и регистрация (/participate.html) пишут в
+// РАЗНЫЕ Google-таблицы со своими Apps Script деплоями. Указывайте их URL через
+// переменные окружения. Для обратной совместимости поддерживается старое имя
+// APPS_SCRIPT_URL — оно используется как planner-URL, если новое не задано.
+const PLANNER_APPS_SCRIPT_URL =
+  process.env.PLANNER_APPS_SCRIPT_URL || process.env.APPS_SCRIPT_URL || "";
+const REGISTRATION_APPS_SCRIPT_URL = process.env.REGISTRATION_APPS_SCRIPT_URL || "";
+
+// Необязательные общие токены между прокси и Apps Script.
+const PLANNER_APPS_SCRIPT_TOKEN =
+  process.env.PLANNER_APPS_SCRIPT_TOKEN || process.env.APPS_SCRIPT_SHARED_TOKEN || "";
+const REGISTRATION_APPS_SCRIPT_TOKEN = process.env.REGISTRATION_APPS_SCRIPT_TOKEN || "";
 
 const ALLOWED_EVENT_TYPES = new Set([
   "morning_checkin",
@@ -37,6 +48,7 @@ function sanitizeEvent(input) {
     timestamp: sanitizeString(input.timestamp, 100),
     date: sanitizeString(input.date, 50),
     sessionId: sanitizeString(input.sessionId, 64),
+    participantId: sanitizeString(input.participantId, 40),
     userName: sanitizeString(input.userName || "anonymous", 120),
     language: sanitizeString(input.language, 8),
     sourcePage: sanitizeString(input.sourcePage, 200),
@@ -48,14 +60,110 @@ function sanitizeEvent(input) {
   };
 }
 
+async function callAppsScript(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const text = await response.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (_e) {
+    parsed = { raw: text };
+  }
+  return { ok: response.ok, status: response.status, parsed, text };
+}
+
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "upeak-railway-proxy" });
+  res.json({
+    ok: true,
+    service: "upeak-proxy",
+    plannerConfigured: Boolean(PLANNER_APPS_SCRIPT_URL),
+    registrationConfigured: Boolean(REGISTRATION_APPS_SCRIPT_URL)
+  });
 });
 
+// --- Регистрация участника ---------------------------------------------------
+// Браузер шлёт сюда JSON формы. Прокси добавляет токен и пересылает в Apps
+// Script регистрации, который присваивает ID участника и возвращает его в JSON.
+app.post("/api/register", async (req, res) => {
+  try {
+    if (!REGISTRATION_APPS_SCRIPT_URL) {
+      return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
+    }
+
+    const body = Object.assign({}, req.body || {}, {
+      proxyToken: REGISTRATION_APPS_SCRIPT_TOKEN,
+      receivedAt: new Date().toISOString(),
+      ip: req.ip || "",
+      userAgent: sanitizeString(req.get("user-agent"), 500)
+    });
+
+    const upstream = await callAppsScript(REGISTRATION_APPS_SCRIPT_URL, body);
+    if (!upstream.ok) {
+      return res.status(502).json({
+        ok: false,
+        error: "Apps Script upstream error",
+        status: upstream.status,
+        body: upstream.text.slice(0, 500)
+      });
+    }
+    return res.status(200).json({ ok: true, upstream: upstream.parsed });
+  } catch (error) {
+    console.error("POST /api/register failed", error);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+// --- Проверка ID участника ---------------------------------------------------
+// Планировщик вызывает этот эндпоинт перед сохранением «Моего ID». Прокси
+// спрашивает у регистрационного Apps Script (doGet?action=lookup&id=...),
+// есть ли такой участник в таблице participates.
+app.get("/api/participant/lookup", async (req, res) => {
+  try {
+    const id = sanitizeString(req.query.id, 40);
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "id is required" });
+    }
+    if (!REGISTRATION_APPS_SCRIPT_URL) {
+      return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
+    }
+
+    const url =
+      REGISTRATION_APPS_SCRIPT_URL +
+      (REGISTRATION_APPS_SCRIPT_URL.indexOf("?") >= 0 ? "&" : "?") +
+      "action=lookup&id=" +
+      encodeURIComponent(id) +
+      (REGISTRATION_APPS_SCRIPT_TOKEN
+        ? "&proxyToken=" + encodeURIComponent(REGISTRATION_APPS_SCRIPT_TOKEN)
+        : "");
+
+    const response = await fetch(url, { method: "GET", redirect: "follow" });
+    const text = await response.text();
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (_e) {
+      parsed = {};
+    }
+
+    if (!response.ok) {
+      return res.status(502).json({ ok: false, error: "Apps Script upstream error", status: response.status });
+    }
+    return res.status(200).json({ ok: true, exists: !!parsed.exists, id });
+  } catch (error) {
+    console.error("GET /api/participant/lookup failed", error);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+// --- События планировщика ----------------------------------------------------
 app.post("/api/events", async (req, res) => {
   try {
-    if (!APPS_SCRIPT_URL) {
-      return res.status(500).json({ ok: false, error: "APPS_SCRIPT_URL is not configured" });
+    if (!PLANNER_APPS_SCRIPT_URL) {
+      return res.status(503).json({ ok: false, error: "PLANNER_APPS_SCRIPT_URL is not configured" });
     }
 
     const event = sanitizeEvent(req.body || {});
@@ -63,46 +171,31 @@ app.post("/api/events", async (req, res) => {
     if (!event.eventType || !ALLOWED_EVENT_TYPES.has(event.eventType)) {
       return res.status(400).json({ ok: false, error: "Invalid eventType" });
     }
-
     if (!event.timestamp || !event.date) {
       return res.status(400).json({ ok: false, error: "timestamp and date are required" });
     }
+    // Без ID участника событие не пишем — иначе строки нельзя отфильтровать по пользователю.
+    if (!event.participantId) {
+      return res.status(400).json({ ok: false, error: "participantId is required" });
+    }
 
-    const body = {
-      ...event,
-      proxyToken: APPS_SCRIPT_SHARED_TOKEN,
+    const body = Object.assign({}, event, {
+      proxyToken: PLANNER_APPS_SCRIPT_TOKEN,
       receivedAt: new Date().toISOString(),
       ip: req.ip || "",
       userAgent: sanitizeString(req.get("user-agent"), 500)
-    };
-
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
     });
 
-    const text = await response.text();
-
-    if (!response.ok) {
+    const upstream = await callAppsScript(PLANNER_APPS_SCRIPT_URL, body);
+    if (!upstream.ok) {
       return res.status(502).json({
         ok: false,
         error: "Apps Script upstream error",
-        status: response.status,
-        body: text.slice(0, 500)
+        status: upstream.status,
+        body: upstream.text.slice(0, 500)
       });
     }
-
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch (_e) {
-      parsed = { raw: text };
-    }
-
-    return res.status(200).json({ ok: true, upstream: parsed });
+    return res.status(200).json({ ok: true, upstream: upstream.parsed });
   } catch (error) {
     console.error("POST /api/events failed", error);
     return res.status(500).json({ ok: false, error: "Internal server error" });

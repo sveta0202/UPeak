@@ -296,42 +296,23 @@ td { color: var(--text); }
   width: 1%;
   text-align: center;
 }
-.order-btn {
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid var(--line);
-  color: var(--text);
-  border-radius: 6px;
-  width: 24px;
-  height: 22px;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  padding: 0;
-}
-.order-btn:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.3);
-}
-.order-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 .order-index {
   display: inline-block;
   min-width: 18px;
   text-align: center;
   color: var(--muted);
-  font-size: 12px;
-  margin: 0 4px;
+  font-size: 13px;
 }
 .drag-handle {
   display: inline-block;
-  color: rgba(26, 54, 93, 0.35);
+  color: rgba(26, 54, 93, 0.45);
   cursor: grab;
   margin-right: 6px;
   font-weight: 600;
   letter-spacing: -2px;
+  user-select: none;
 }
+.drag-handle:active { cursor: grabbing; }
 tr.task-row {
   transition: background 0.15s, transform 0.15s;
 }
@@ -339,10 +320,48 @@ tr.task-row.dragging {
   opacity: 0.6;
   background: rgba(239, 68, 68, 0.05);
 }
-tr.task-row.drop-target {
-  background: rgba(239, 68, 68, 0.08);
-  box-shadow: inset 0 2px 0 rgba(239, 68, 68, 0.6);
+tr.task-row.drop-before td {
+  box-shadow: inset 0 2px 0 rgba(239, 68, 68, 0.7);
 }
+tr.task-row.drop-after td {
+  box-shadow: inset 0 -2px 0 rgba(239, 68, 68, 0.7);
+}
+
+/* Поле «Мой ID» в шапке планировщика */
+.participant-id {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(26, 54, 93, 0.06);
+}
+.participant-id-label {
+  font-weight: 600;
+  color: var(--text);
+  flex-direction: row;
+}
+.participant-id-input {
+  flex: 0 1 220px;
+  min-width: 160px;
+}
+.participant-id-input[readonly] {
+  background: rgba(26, 54, 93, 0.05);
+  color: var(--muted);
+  cursor: default;
+}
+.participant-id .btn { padding: 8px 14px; }
+.participant-id-status {
+  font-size: 13px;
+  color: var(--muted);
+}
+.participant-id-status.is-ok { color: #15803d; }
+.participant-id-status.is-err { color: #b91c1c; }
+.participant-id-status.is-info { color: #1e3a8a; }
 #scheduledCard .btn-icon {
   font-size: 12px;
   padding: 4px 10px;

@@ -28,6 +28,17 @@
         <a class="home-link" href="index.html" data-i18n="planner.home">На лендинг</a>
       </div>
     </header>
+
+    <form id="participantIdForm" class="participant-id" autocomplete="off">
+      <label class="participant-id-label" for="participantIdInput" data-i18n="planner.id.label">Мой ID</label>
+      <input type="text" id="participantIdInput" class="participant-id-input"
+             placeholder="Например, UP-000001" data-i18n-placeholder="planner.id.placeholder"
+             maxlength="40" autocomplete="off" />
+      <button type="submit" id="participantIdSaveBtn" class="btn" data-i18n="planner.id.save">Сохранить</button>
+      <button type="button" id="participantIdChangeBtn" class="btn secondary hidden" data-i18n="planner.id.change">Изменить ID</button>
+      <span id="participantIdStatus" class="participant-id-status" aria-live="polite"></span>
+    </form>
+
     <p id="syncStatus" class="sync-status" aria-live="polite"></p>
 
     <section class="card">
@@ -99,7 +110,7 @@
         </thead>
         <tbody id="taskTableBody"></tbody>
       </table>
-      <p class="muted hint" data-i18n="planner.tasks.reorderHint">Перетаскивайте задачи или используйте стрелки ↑/↓, чтобы выстроить удобный порядок.</p>
+      <p class="muted hint" data-i18n="planner.tasks.reorderHint">Перетаскивайте задачи за ручку ⋮⋮ слева, чтобы выстроить удобный порядок.</p>
     </section>
 
     <section class="card" id="scheduledCard">

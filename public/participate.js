@@ -212,12 +212,10 @@
     return ok;
   }
 
-  function getScriptUrl() {
-  var url = (form.getAttribute("data-script-url") || "").trim();
-  return url === "https://script.google.com/macros/s/AKfycbzylUuFiJ-9XKOxevRMVD_d9-Y5hXUSTjNB_dsCAaT1LfpD2n-j4qhyX5nUJM6HIoHe/exec"
-    ? url
-    : "";
-  }
+  // Регистрация всегда идёт через серверный прокси /api/register. Прокси
+  // добавляет токен и общается с Apps Script, а нам возвращает JSON
+  // (включая присвоенный participantId), который можно прочитать на любом домене.
+  var REGISTER_ENDPOINT = "/api/register";
 
   function buildSurveyPayload() {
     // Send stable English answer codes plus localized labels (current language)
@@ -283,13 +281,9 @@
   }
 
   function postForm(url, payload) {
-    // Apps Script web apps accept text/plain as a "simple" CORS POST without preflight.
-    // The payload is a JSON string; doPost reads it via e.postData.contents.
     return fetch(url, {
       method: "POST",
-      mode: "cors",
-      redirect: "follow",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
   }
@@ -309,17 +303,11 @@
       return;
     }
 
-    var url = getScriptUrl();
-    if (!url) {
-      showBanner("error", "participate.status.noUrl", "Форма не настроена: укажите URL Google Apps Script.");
-      return;
-    }
-
     var payload = buildPayload();
     setSubmitting(true);
     showBanner("info", "participate.status.sending", "Отправляем заявку…");
 
-    postForm(url, payload)
+    postForm(REGISTER_ENDPOINT, payload)
       .then(function (response) {
         return response.text().then(function (text) {
           var parsed = null;
@@ -328,15 +316,35 @@
         });
       })
       .then(function (result) {
-        if (result.ok && (!result.parsed || result.parsed.ok !== false)) {
+        // Прокси отдаёт { ok, upstream: { ok, participantId } }.
+        var upstream = result.parsed && result.parsed.upstream;
+        var upstreamOk = !upstream || upstream.ok !== false;
+        if (result.ok && (!result.parsed || result.parsed.ok !== false) && upstreamOk) {
           showBanner("success", "participate.status.success", "Спасибо! Мы получили вашу заявку.");
+          // Показываем присвоенный ID участника, если бэкенд его вернул.
+          var pid = result.parsed && (result.parsed.participantId ||
+            (result.parsed.upstream && result.parsed.upstream.participantId));
+          if (pid && statusBanner) {
+            var idLine = document.createElement("div");
+            idLine.style.marginTop = "8px";
+            idLine.style.fontWeight = "600";
+            idLine.textContent = t("participate.id.assigned", "Ваш ID участника:") + " " + pid;
+            var hintLine = document.createElement("div");
+            hintLine.style.marginTop = "2px";
+            hintLine.style.fontWeight = "400";
+            hintLine.style.fontSize = "13px";
+            hintLine.textContent = t("participate.id.hint", "Сохраните этот ID — он понадобится в прототипе-планировщике.");
+            statusBanner.appendChild(idLine);
+            statusBanner.appendChild(hintLine);
+          }
           form.reset();
           // Clear visual selection state on radio option labels after reset.
           document.querySelectorAll(".survey-option.is-selected").forEach(function (el) {
             el.classList.remove("is-selected");
           });
         } else {
-          var serverMsg = result.parsed && result.parsed.error ? String(result.parsed.error) : "";
+          var serverMsg = (upstream && upstream.error) ? String(upstream.error)
+            : (result.parsed && result.parsed.error ? String(result.parsed.error) : "");
           showBanner("error", "participate.status.error", "Не удалось отправить заявку. Попробуйте ещё раз.");
           if (serverMsg && statusBanner) {
             statusBanner.textContent = statusBanner.textContent + " (" + serverMsg + ")";
