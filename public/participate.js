@@ -87,6 +87,23 @@
     return checked ? checked.value : "";
   }
 
+  function selfControlTraitFromSurveyQ3(answer) {
+    switch (answer) {
+      case "often": return 1;
+      case "sometimes": return 2;
+      case "rarely": return 4;
+      case "almost_never": return 5;
+      default: return 3;
+    }
+  }
+
+  function persistSelfControlTrait() {
+    try {
+      var trait = selfControlTraitFromSurveyQ3(getSurveyValue("surveyQ3"));
+      localStorage.setItem("upeak_self_control_trait", String(trait));
+    } catch (_e) {}
+  }
+
   function setSurveyError(question, key, fallback) {
     var group = document.getElementById(question.groupId);
     var errorEl = document.getElementById(question.errorId);
@@ -320,6 +337,7 @@
         var upstream = result.parsed && result.parsed.upstream;
         var upstreamOk = !upstream || upstream.ok !== false;
         if (result.ok && (!result.parsed || result.parsed.ok !== false) && upstreamOk) {
+          persistSelfControlTrait();
           showBanner("success", "participate.status.success", "Спасибо! Мы получили вашу заявку.");
           // Показываем присвоенный ID участника, если бэкенд его вернул.
           var pid = result.parsed && (result.parsed.participantId ||

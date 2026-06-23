@@ -17,7 +17,9 @@
     participantIdInput: byId("participantIdInput"),
     participantIdSaveBtn: byId("participantIdSaveBtn"),
     participantIdChangeBtn: byId("participantIdChangeBtn"),
-    participantIdStatus: byId("participantIdStatus")
+    participantIdStatus: byId("participantIdStatus"),
+    morningRecommendations: byId("morningRecommendations"),
+    eveningReview: byId("eveningReview")
   };
   var editingTaskId = null;
   var lastSyncStatus = "idle";
@@ -53,6 +55,7 @@
   updateDayStatus();
   updateSyncStatus("idle");
   setupParticipantId();
+  refreshInterventionBlocks();
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(function () {
@@ -64,6 +67,7 @@
       updateSyncStatus(lastSyncStatus);
       refreshParticipantIdStatus();
       el.taskSubmitBtn.textContent = editingTaskId ? t("planner.tasks.saveEdit") : t("planner.tasks.add");
+      refreshInterventionBlocks();
     });
   }
 
@@ -75,12 +79,15 @@
       sleepHours: getNum("sleepHours"),
       sleepQuality: getNum("sleepQuality"),
       energy: getNum("energy"),
-      wellbeing: getNum("wellbeing"),
       stress: getNum("stress"),
       note: byId("morningNote").value.trim()
     };
 
     state.readiness = calcReadiness(state.morning);
+    state.morningRecommendations = getMorningRecommendations(
+      state.morning,
+      getReadinessLevel(state.readiness)
+    );
     activateDailyRoutine();
     promoteScheduledForToday();
     saveState();
@@ -88,6 +95,7 @@
     renderScheduled();
     updateFact();
     updateReadiness();
+    renderMorningRecommendations();
 
     sync("morning_checkin", state.morning);
   });
@@ -168,48 +176,78 @@
 
     state.evening = {
       date: today,
-      productivity: getNum("productivity"),
       fatigue: getNum("fatigue"),
+      taskStart: getNum("eveningTaskStart"),
+      procrastination: getNum("eveningProcrastination"),
+      detachment: getNum("eveningDetachment"),
       note: byId("eveningNote").value.trim(),
       completed: state.tasks.filter(function (t) { return t.done; }).length,
       total: state.tasks.length
     };
 
+    state.eveningReview = getEveningReview(
+      state.evening,
+      state.readiness == null ? 0 : state.readiness,
+      state.evening.completed,
+      state.evening.total
+    );
+
     state.dayClosedAt = new Date().toISOString();
     saveState();
     updateFact();
     updateDayStatus();
+    renderEveningReview();
 
     sync("evening_checkout", state.evening);
   });
 
   // Распределение по состоянию: учитываем срочность (приоритет), важность, сложность и
-  // длительность. То, что не помещается в бюджет (или слишком сложное/длинное и при этом
-  // не срочное), помечается как "перенести на завтра" и уходит в раздел "Запланированные".
+  // длительность. Рутина всегда остаётся в дне (утренний слот) и сначала резервирует
+  // часть дневного бюджета. То, что не помещается в остаток бюджета (или слишком
+  // сложное/длинное и при этом не срочное), уходит в «Запланированные».
+  function getTaskLoad(task) {
+    return (Number(task.difficulty) || 0) + Math.ceil((Number(task.duration) || 0) / 45);
+  }
+
+  function getRoutineBudgetLoad(task, readiness) {
+    var load = getTaskLoad(task);
+    // На низком состоянии рутина «легче» для плана — её как раз рекомендуют в первую очередь.
+    if (readiness < 40) return Math.max(1, load * 0.7);
+    if (readiness < 70) return Math.max(1, load * 0.85);
+    return load;
+  }
+
   function distributeTasks() {
     var readiness = state.readiness || 50;
-    var budget = readiness < 40 ? 7 : readiness < 70 ? 11 : 16;
+    var budget = getDailyBudget(readiness);
     var slotKeys = [SLOT_KEYS.morningFocus, SLOT_KEYS.dayOps, SLOT_KEYS.eveningLight];
 
-    var sorted = state.tasks.slice().sort(comparePriority);
+    var routines = [];
+    var regular = [];
+    state.tasks.forEach(function (task) {
+      if (isRoutineTask(task)) routines.push(task);
+      else regular.push(task);
+    });
+
     var remaining = budget;
     var movedToScheduled = 0;
     var carry = [];
     var kept = [];
 
+    routines.sort(function (a, b) {
+      return (Number(a.order) || 0) - (Number(b.order) || 0);
+    });
+
+    routines.forEach(function (task) {
+      task.slotKey = SLOT_KEYS.morningRoutine;
+      remaining -= getRoutineBudgetLoad(task, readiness);
+      kept.push(task);
+    });
+
+    var sorted = regular.slice().sort(comparePriority);
+
     sorted.forEach(function (task) {
-      var load = task.difficulty + Math.ceil(task.duration / 45);
-
-      // Рутина всегда остаётся в дне и идёт в начало (утренний слот),
-      // но её нагрузка тоже учитывается в бюджете дня — иначе распределение
-      // по состоянию игнорирует базовые задачи.
-      if (isRoutineTask(task)) {
-        task.slotKey = SLOT_KEYS.morningRoutine;
-        remaining -= load;
-        kept.push(task);
-        return;
-      }
-
+      var load = getTaskLoad(task);
       var isUrgent = Number(task.urgency) >= 4;
       var tooHeavy = (readiness < 45 && task.difficulty >= 4) || task.duration >= 180;
       var noBudget = remaining < load;
@@ -242,6 +280,7 @@
 
     var tomorrow = tomorrowISO();
     carry.forEach(function (task) {
+      if (isRoutineTask(task)) return;
       state.scheduled.push({
         id: task.id,
         title: task.title,
@@ -649,14 +688,290 @@
   function calcReadiness(m) {
     var sleepScore = Math.min(100, (m.sleepHours / 8) * 100);
     var quality = (m.sleepQuality / 5) * 100;
-    var energy = (m.energy / 5) * 100;
-    var wellbeing = (m.wellbeing / 5) * 100;
+    // Поле energy: шкала усталости/мало энергии (1 — мало, 5 — сильно).
+    var fatigueLevel = Number(m.energy);
+    if (!Number.isFinite(fatigueLevel)) fatigueLevel = 3;
+    var vitality = ((6 - fatigueLevel) / 5) * 100;
     var stressPenalty = ((m.stress - 1) / 4) * 40;
+
+    // Старые чек-ины с полем wellbeing сохраняем совместимыми.
+    if (m.wellbeing != null && Number.isFinite(Number(m.wellbeing))) {
+      var wellbeing = (Number(m.wellbeing) / 5) * 100;
+      return Math.max(
+        0,
+        Math.round(0.30 * sleepScore + 0.25 * quality + 0.20 * vitality + 0.25 * wellbeing - stressPenalty)
+      );
+    }
 
     return Math.max(
       0,
-      Math.round(0.30 * sleepScore + 0.25 * quality + 0.20 * energy + 0.25 * wellbeing - stressPenalty)
+      Math.round(0.35 * sleepScore + 0.30 * quality + 0.35 * vitality - stressPenalty)
     );
+  }
+
+  function getReadinessLevel(readiness) {
+    if (readiness < 40) return "low";
+    if (readiness < 70) return "medium";
+    return "high";
+  }
+
+  var SELF_CONTROL_STORAGE_KEY = "upeak_self_control_trait";
+
+  function getSelfControlTrait() {
+    var fromState = Number(state.selfControlTrait);
+    if (Number.isFinite(fromState) && fromState >= 1 && fromState <= 5) {
+      return fromState;
+    }
+    try {
+      var stored = Number(localStorage.getItem(SELF_CONTROL_STORAGE_KEY));
+      if (Number.isFinite(stored) && stored >= 1 && stored <= 5) return stored;
+    } catch (_e) {}
+    return 3;
+  }
+
+  function getDailyBudget(readiness) {
+    var level = getReadinessLevel(readiness);
+    var budget = level === "low" ? 7 : level === "medium" ? 11 : 16;
+    var selfControlTrait = getSelfControlTrait();
+    if (selfControlTrait < 3 && readiness < 40) {
+      budget = Math.round(budget * 0.85);
+    }
+    return budget;
+  }
+
+  function getMorningRecommendations(m, readinessLevel) {
+    var recs = [];
+
+    if (m.sleepHours < 6) {
+      recs.push({
+        text: "Сон был коротким. Сегодня лучше не перегружать день. Вечером попробуй лечь на 30 минут раньше — убери или сократи одно дело (экран, переписки, мелкие дела).",
+        why: {
+          text: "Мало сна ухудшает внимание и самоконтроль — сложнее начинать и доводить дела.",
+          source: "Lim & Dinges, 2010",
+          url: "https://pubmed.ncbi.nlm.nih.gov/21075236/"
+        }
+      });
+    }
+
+    if (m.sleepQuality <= 2 && m.stress >= 4) {
+      recs.push({
+        text: "Сон был неспокойным, а стресс высокий. Сегодня помогут короткая прогулка, лёгкая разминка или 10–15 минут без экрана.",
+        why: {
+          text: "Отдых и отвлечение от задач помогают восстановить силы после стресса.",
+          source: "Sonnentag & Fritz, 2007",
+          url: "https://doi.org/10.1037/0021-9010.92.6.1458"
+        }
+      });
+    }
+
+    if (Number(m.energy) >= 4) {
+      recs.push({
+        text: "С утра мало сил. Начни с простых рутинных задач — без сложных решений в первые часы.",
+        why: {
+          text: "Когда энергии мало, тяжёлые задачи в начале дня чаще остаются недоделанными.",
+          source: "Krause et al., 2017",
+          url: "https://doi.org/10.1073/pnas.1617233114"
+        }
+      });
+    }
+
+    if (readinessLevel === "high") {
+      recs.push({
+        text: "С утра хорошее состояние — можно планировать важные и сложные задачи на первую половину дня.",
+        why: {
+          text: "Когда ресурсов больше, проще удерживать внимание и доводить дела до конца.",
+          source: "Muraven & Baumeister, 2000",
+          url: "https://doi.org/10.1037/0003-066X.55.1.68"
+        }
+      });
+    }
+
+    return recs;
+  }
+
+  function getCompletionBand(rate) {
+    if (rate >= 70) return "high";
+    if (rate >= 60) return "medium";
+    return "low";
+  }
+
+  function getMorningStateBand(morningScore) {
+    if (morningScore < 40) return "low";
+    if (morningScore < 70) return "medium";
+    return "high";
+  }
+
+  function getEveningReview(eveningData, morningScore, completedTasks, totalTasks) {
+    var completionRate = totalTasks > 0
+      ? Math.round((completedTasks / totalTasks) * 100)
+      : 0;
+
+    var stateBand = getMorningStateBand(morningScore);
+    var completionBand = getCompletionBand(completionRate);
+    var summary = { completionRate: completionRate };
+
+    if (stateBand === "high" && completionBand === "high") {
+      summary.title = "Отличный день 💪";
+      summary.text = "С утра было хорошее состояние, и большинство задач закрыто.";
+      summary.rec = "Сохрани ритм: ляг в привычное время, без лишних дел перед сном.";
+    } else if (stateBand === "high" && completionBand === "low") {
+      summary.title = "Хорошее утро, но не всё успели";
+      summary.text = "Состояние с утра было сильным, но часть задач осталась открытой.";
+      summary.rec = "Завтра заложи меньше задач или разбей крупные на более короткие шаги.";
+    } else if (stateBand === "high" && completionBand === "medium") {
+      summary.title = "Неплохой день";
+      summary.text = "С утра было хорошее состояние, закрыта примерно половина плана и больше.";
+      summary.rec = "Посмотри, какие задачи «застряли» — возможно, их стоит упростить или перенести.";
+    } else if (stateBand === "low" && completionBand === "low") {
+      summary.title = "Тяжёлый день — это нормально";
+      summary.text = "С утра сил было мало, и часть задач не закрылась. Это сигнал, а не провал.";
+      summary.rec = "Сегодня важнее отдых: ляг на 30 минут раньше и сократи вечерние дела.";
+    } else if (stateBand === "low" && completionBand === "high") {
+      summary.title = "Справился на износ 👊";
+      summary.text = "С утра сил было мало, но ты закрыл большинство задач.";
+      summary.rec = "Так часто нельзя — сегодня точно отдохни, без «доделать ещё чуть-чуть».";
+    } else if (stateBand === "low" && completionBand === "medium") {
+      summary.title = "День на пределе";
+      summary.text = "С утра сил было мало, закрыта только часть задач.";
+      summary.rec = "Не добирай силы за счёт сна — сегодня лучше меньше нагрузки, больше восстановления.";
+    } else if (stateBand === "medium" && completionBand === "high") {
+      summary.title = "Ровный продуктивный день";
+      summary.text = "Состояние было средним, но большинство задач выполнено.";
+      summary.rec = "Хороший баланс. Следи, чтобы не добавлять завтра лишнего «на всякий случай».";
+    } else if (stateBand === "medium" && completionBand === "low") {
+      summary.title = "День не задался";
+      summary.text = "Состояние было средним, но закрыто мало задач.";
+      summary.rec = "Возможно, план был слишком плотным или задачи оказались сложнее. Завтра оставь меньше пунктов.";
+    } else {
+      summary.title = "Средний день";
+      summary.text = "Состояние было средним, часть задач закрыта, часть — нет.";
+      summary.rec = "Отметь, что мешало: усталость, отвлечения или неясные задачи — это поможет спланировать завтра.";
+    }
+
+    if (eveningData) {
+      if (Number(eveningData.procrastination) >= 4 || Number(eveningData.taskStart) >= 4) {
+        summary.rec += " Сложно было начинать — завтра поставь одну самую маленькую задачу первой.";
+      }
+      if (Number(eveningData.detachment) <= 2) {
+        summary.rec += " Вечером не удалось отключиться от работы — попробуй 15 минут без экрана перед сном.";
+      }
+    }
+
+    return summary;
+  }
+
+  function renderWhyHtml(why) {
+    if (!why) return "";
+    if (typeof why === "string") {
+      return '<p class="intervention-why-text">' + escapeHtml(why) + "</p>";
+    }
+    var html = '<div class="intervention-why-inner">';
+    html += '<p class="intervention-why-text">' + escapeHtml(why.text) + "</p>";
+    if (why.source) {
+      html += '<p class="intervention-why-source">';
+      if (why.url) {
+        html += '<a href="' + escapeHtml(why.url) + '" target="_blank" rel="noopener noreferrer">' +
+          escapeHtml(why.source) + "</a>";
+      } else {
+        html += escapeHtml(why.source);
+      }
+      html += "</p>";
+    }
+    html += "</div>";
+    return html;
+  }
+
+  function refreshInterventionBlocks() {
+    if (state.morning && state.morning.date === today && state.readiness != null) {
+      if (!Array.isArray(state.morningRecommendations) || !state.morningRecommendations.length) {
+        state.morningRecommendations = getMorningRecommendations(
+          state.morning,
+          getReadinessLevel(state.readiness)
+        );
+      }
+      renderMorningRecommendations();
+    } else {
+      renderMorningRecommendations();
+    }
+
+    if (state.evening && state.evening.date === today) {
+      if (!state.eveningReview) {
+        state.eveningReview = getEveningReview(
+          state.evening,
+          state.readiness == null ? 0 : state.readiness,
+          state.evening.completed,
+          state.evening.total
+        );
+      }
+      renderEveningReview();
+    } else {
+      renderEveningReview();
+    }
+  }
+
+  function renderMorningRecommendations() {
+    var container = el.morningRecommendations;
+    if (!container) return;
+
+    var recs = state.morningRecommendations;
+    var show = Array.isArray(recs) && recs.length > 0 &&
+      state.morning && state.morning.date === today;
+
+    if (!show) {
+      container.classList.add("hidden");
+      container.innerHTML = "";
+      return;
+    }
+
+    container.classList.remove("hidden");
+    container.innerHTML =
+      '<h3 class="intervention-title">Рекомендации на сегодня</h3>' +
+      recs.map(function (rec, idx) {
+        return (
+          '<article class="intervention-card">' +
+            '<p class="intervention-text">' + escapeHtml(rec.text) + "</p>" +
+            '<button type="button" class="intervention-why-btn" data-why-target="morningWhy' + idx + '" aria-expanded="false">Почему?</button>' +
+            '<div class="intervention-why hidden" id="morningWhy' + idx + '">' + renderWhyHtml(rec.why) + "</div>" +
+          "</article>"
+        );
+      }).join("");
+
+    bindWhyToggles(container);
+  }
+
+  function renderEveningReview() {
+    var container = el.eveningReview;
+    if (!container) return;
+
+    var review = state.eveningReview;
+    var show = review && state.evening && state.evening.date === today;
+
+    if (!show) {
+      container.classList.add("hidden");
+      container.innerHTML = "";
+      return;
+    }
+
+    container.classList.remove("hidden");
+    container.innerHTML =
+      '<article class="intervention-card intervention-summary">' +
+        '<h3 class="intervention-title">' + escapeHtml(review.title) + "</h3>" +
+        '<p class="intervention-meta">Выполнено: ' + review.completionRate + "%</p>" +
+        '<p class="intervention-text">' + escapeHtml(review.text) + "</p>" +
+        '<p class="intervention-rec"><strong>Рекомендация:</strong> ' + escapeHtml(review.rec) + "</p>" +
+      "</article>";
+  }
+
+  function bindWhyToggles(container) {
+    container.querySelectorAll(".intervention-why-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var targetId = btn.getAttribute("data-why-target");
+        var whyEl = targetId ? document.getElementById(targetId) : null;
+        if (!whyEl) return;
+        whyEl.classList.toggle("hidden");
+        btn.setAttribute("aria-expanded", whyEl.classList.contains("hidden") ? "false" : "true");
+      });
+    });
   }
 
   // План-факт считается только по задачам на сегодня. Запланированные на завтра
@@ -955,11 +1270,13 @@
     return String(title || "").trim().slice(0, 140);
   }
   function isRoutineTask(task) {
-    return Boolean(task && task.routine);
+    return Boolean(
+      task && (task.routine || task.slotKey === SLOT_KEYS.morningRoutine)
+    );
   }
 
   // Priority comparator used during distribution and display.
-  // Срочность важнее остального, потом важность (по urgency и difficulty),
+  // Срочность важнее остального, потом важность (urgency×2.5 + difficulty×1.5 + duration_hours×0.5),
   // потом сложность, потом длительность.
   function comparePriority(a, b) {
     if (isRoutineTask(a) !== isRoutineTask(b)) return isRoutineTask(a) ? -1 : 1;
@@ -975,7 +1292,10 @@
   }
 
   function importanceScore(task) {
-    return (Number(task.urgency) || 0) * 2 + (Number(task.difficulty) || 0);
+    var urgency = Number(task.urgency) || 0;
+    var difficulty = Number(task.difficulty) || 0;
+    var durationHours = (Number(task.duration) || 0) / 60;
+    return (urgency * 2.5) + (difficulty * 1.5) + (durationHours * 0.5);
   }
 
   // Display order:

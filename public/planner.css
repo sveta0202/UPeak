@@ -93,23 +93,55 @@ h2 { display: flex; align-items: center; gap: 10px; font-weight: 600; }
   margin-bottom: 14px;
   box-shadow: 0 4px 20px rgba(26, 54, 93, 0.06);
 }
-.grid { display: grid; gap: 12px; }
-.grid.two { grid-template-columns: repeat(2, 1fr); }
-.grid.three { grid-template-columns: repeat(3, 1fr); }
-.grid.four { grid-template-columns: 2fr repeat(3, 1fr); }
+.grid { display: grid; gap: 16px 20px; align-items: stretch; }
+.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid.four { grid-template-columns: 2fr repeat(3, minmax(0, 1fr)); }
+.grid.checkin {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.grid.tasks {
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(110px, 1fr));
+  align-items: end;
+}
 label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-size: 14px;
   color: var(--muted);
   font-weight: 500;
+  min-width: 0;
+}
+label.field {
+  height: 100%;
+}
+label.field .field-question {
+  flex: 1 1 auto;
+  display: block;
+  min-height: 2.75em;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+label.field.full .field-question {
+  min-height: auto;
+}
+label.field-compact .field-question {
+  min-height: auto;
+}
+label.field input {
+  width: 100%;
+  flex-shrink: 0;
 }
 label.checkbox-label {
   flex-direction: row;
   align-items: center;
+  align-self: end;
   gap: 8px;
-  padding-top: 28px;
+  min-height: 42px;
+  padding-top: 0;
   color: var(--text);
 }
 label.checkbox-label input[type="checkbox"] {
@@ -133,9 +165,92 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
 }
 input::placeholder { color: rgba(26, 54, 93, 0.4); }
-.row { display: flex; align-items: center; gap: 10px; }
+.row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+.row.full { margin-top: 4px; }
 .full { grid-column: 1 / -1; }
 .hidden { display: none; }
+.intervention-block {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.intervention-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.intervention-card {
+  background: var(--card-bg-strong);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-left: 4px solid rgba(239, 68, 68, 0.55);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.intervention-summary {
+  border-left-color: rgba(21, 128, 61, 0.55);
+}
+.intervention-text,
+.intervention-rec,
+.intervention-meta {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.intervention-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+.intervention-rec {
+  margin-bottom: 0;
+}
+.intervention-why {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: rgba(26, 54, 93, 0.04);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.intervention-why-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.intervention-why-text {
+  margin: 0;
+  color: var(--text);
+}
+.intervention-why-source {
+  margin: 0;
+  font-size: 12px;
+}
+.intervention-why-source a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.intervention-why-source a:hover {
+  text-decoration: underline;
+}
+.intervention-why-btn {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.intervention-why-btn:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: var(--accent);
+}
 .btn {
   background: rgba(239, 68, 68, 0.9);
   color: #ffffff;
@@ -282,7 +397,13 @@ td { color: var(--text); }
   background: rgba(26, 54, 93, 0.06);
 }
 @media (max-width: 900px) {
-  .grid.two, .grid.three, .grid.four { grid-template-columns: 1fr; }
+  .grid.two,
+  .grid.three,
+  .grid.four,
+  .grid.checkin,
+  .grid.tasks { grid-template-columns: 1fr; }
+  label.field .field-question { min-height: auto; }
+  label.checkbox-label { align-self: stretch; min-height: auto; }
   .top { flex-direction: column; align-items: flex-start; }
 }
 .sync-status {
