@@ -1,45 +1,53 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title data-i18n="meta.planner.title">PulseBurn Planner Prototype</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./planner.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="meta.planner.title">PulseBurn Planner — Прототип</title>
+  <meta name="description" data-i18n="meta.planner.title" content="PulseBurn Planner — Прототип">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./planner.css">
 </head>
 <body>
   <main class="layout">
     <header class="top">
       <div class="top-brand">
-        <img class="brand-logo" src="./upeak-logo.jpg" alt="Upeak" data-i18n-alt="hero.logo.alt" />
+        <img src="./upeak-logo.jpg" alt="Upeak logo" class="brand-logo">
         <div>
           <p class="eyebrow" data-i18n="planner.eyebrow">Исследовательский прототип</p>
           <h1 data-i18n="planner.title">Планировщик задач по состоянию</h1>
         </div>
       </div>
+
       <div class="top-actions">
-        <div class="lang-switch" role="group" data-i18n-aria-label="nav.lang.aria" aria-label="Язык интерфейса">
-          <svg class="sf-icon" aria-hidden="true"><use href="#sf-globe"></use></svg>
-          <button type="button" data-lang-toggle="ru" aria-pressed="true">RU</button>
-          <button type="button" data-lang-toggle="en" aria-pressed="false">EN</button>
+        <div class="lang-switch" aria-label="Language switcher">
+          <button type="button" data-lang-toggle="ru">RU</button>
+          <button type="button" data-lang-toggle="en">EN</button>
         </div>
-        <a class="home-link" href="index.html" data-i18n="planner.home">На лендинг</a>
+        <a class="home-link" href="./index.html" data-i18n="planner.home">На лендинг</a>
       </div>
     </header>
 
-    <form id="participantIdForm" class="participant-id" autocomplete="off">
+    <section class="participant-id">
       <label class="participant-id-label" for="participantIdInput" data-i18n="planner.id.label">Мой ID</label>
-      <input type="text" id="participantIdInput" class="participant-id-input"
-             placeholder="Например, UP-000001" data-i18n-placeholder="planner.id.placeholder"
-             maxlength="40" autocomplete="off" />
-      <button type="submit" id="participantIdSaveBtn" class="btn" data-i18n="planner.id.save">Сохранить</button>
-      <button type="button" id="participantIdChangeBtn" class="btn secondary hidden" data-i18n="planner.id.change">Изменить ID</button>
-      <span id="participantIdStatus" class="participant-id-status" aria-live="polite"></span>
-    </form>
-
-    <p id="syncStatus" class="sync-status" aria-live="polite"></p>
+      <form id="participantIdForm" class="row" novalidate>
+        <input
+          id="participantIdInput"
+          class="participant-id-input"
+          type="text"
+          inputmode="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Например, UP-000001"
+          data-i18n-placeholder="planner.id.placeholder"
+        >
+        <button type="submit" id="participantIdSaveBtn" class="btn" data-i18n="planner.id.save">Сохранить</button>
+        <button type="button" id="participantIdChangeBtn" class="btn secondary" data-i18n="planner.id.change">Изменить ID</button>
+      </form>
+      <div id="participantIdStatus" class="participant-id-status" aria-live="polite"></div>
+    </section>
 
     <section class="card">
       <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-sleep"></use></svg></span><span data-i18n="planner.morning.title">1) Утренний чек-ин состояния</span></h2>
@@ -63,9 +71,13 @@
         <label class="field full"><span class="field-question" data-i18n="planner.morning.note">Комментарий</span>
           <input id="morningNote" placeholder="Коротко: как вы себя чувствуете" data-i18n-placeholder="planner.morning.notePh" />
         </label>
+
         <div class="row full">
-          <button class="btn" type="submit" data-i18n="planner.morning.save">Сохранить чек-ин</button>
-          <strong id="readinessValue">Состояние: —</strong>
+          <button type="submit" class="btn" data-i18n="planner.morning.save">Сохранить чек-ин</button>
+          <span class="status">
+            <span data-i18n="planner.readiness">Состояние</span>:
+            <strong id="readinessValue">—</strong>
+          </span>
         </div>
       </form>
       <div id="morningRecommendations" class="intervention-block hidden" aria-live="polite"></div>
@@ -86,14 +98,16 @@
         <label class="field field-compact"><span class="field-question" data-i18n="planner.tasks.duration">Оценка времени</span>
           <input type="text" inputmode="numeric" id="taskDuration" placeholder="5–360 мин" data-i18n-placeholder="planner.scale.minutes" required autocomplete="off" />
         </label>
-        <label class="checkbox-label">
-          <input type="checkbox" id="taskRoutine" />
+
+        <label class="checkbox-label full">
+          <input id="taskRoutine" type="checkbox">
           <span data-i18n="planner.tasks.routine">Рутина (базовая задача дня)</span>
         </label>
+
         <div class="row full">
-          <button id="taskSubmitBtn" class="btn" type="submit" data-i18n="planner.tasks.add">Добавить задачу</button>
-          <button id="cancelEditBtn" class="btn secondary hidden" type="button" data-i18n="planner.tasks.cancelEdit">Отменить редактирование</button>
-          <button id="planBtn" class="btn secondary" type="button" data-i18n="planner.tasks.distribute">Распределить по состоянию</button>
+          <button type="submit" id="taskSubmitBtn" class="btn" data-i18n="planner.tasks.add">Добавить задачу</button>
+          <button type="button" id="cancelEditBtn" class="btn secondary" hidden data-i18n="planner.tasks.cancelEdit">Отменить редактирование</button>
+          <button type="button" id="planBtn" class="btn secondary" data-i18n="planner.tasks.distribute">Распределить по состоянию</button>
         </div>
       </form>
 
@@ -112,12 +126,22 @@
         </thead>
         <tbody id="taskTableBody"></tbody>
       </table>
-      <p class="muted hint" data-i18n="planner.tasks.reorderHint">Перетаскивайте задачи за ручку ⋮⋮ слева, чтобы выстроить удобный порядок.</p>
+
+      <p class="hint muted" data-i18n="planner.tasks.reorderHint">
+        Перетаскивайте задачи за ручку ⋮⋮ слева, чтобы выстроить удобный порядок.
+      </p>
     </section>
 
     <section class="card" id="scheduledCard">
-      <h2><span class="card-icon"><svg class="sf-icon" aria-hidden="true"><use href="#sf-calendar"></use></svg></span><span data-i18n="planner.scheduled.title">3) Запланированные на завтра</span></h2>
-      <p class="muted" data-i18n="planner.scheduled.hint">Задачи, которые после распределения по состоянию помечены как «перенести на завтра». Утром следующего дня они автоматически вернутся в основной список.</p>
+      <h2>
+        <span class="card-icon" aria-hidden="true">📅</span>
+        <span data-i18n="planner.scheduled.title">3) Запланированные на завтра</span>
+      </h2>
+
+      <p class="muted" data-i18n="planner.scheduled.hint">
+        Задачи, которые после распределения по состоянию помечены как «перенести на завтра». Утром следующего дня они автоматически вернутся в основной список.
+      </p>
+
       <table>
         <thead>
           <tr>
@@ -155,17 +179,22 @@
         <label class="field full"><span class="field-question" data-i18n="planner.evening.note">Комментарий</span>
           <input id="eveningNote" placeholder="Что помогло/мешало" data-i18n-placeholder="planner.evening.notePh" />
         </label>
+
         <div class="row full">
-          <button class="btn" type="submit" data-i18n="planner.evening.save">Закрыть день</button>
-          <strong id="factValue">Факт: 0/0 выполнено</strong>
+          <button type="submit" class="btn" data-i18n="planner.evening.save">Закрыть день</button>
+          <span class="status">
+            <span data-i18n="planner.evening.fact">Факт</span>:
+            <strong id="factValue">0/0</strong>
+          </span>
+          <span id="dayStatus" class="status" data-i18n="planner.evening.dayOpen">День не закрыт</span>
         </div>
-        <p id="dayStatus" class="muted full">День не закрыт</p>
       </form>
       <div id="eveningReview" class="intervention-block hidden" aria-live="polite"></div>
     </section>
+
+    <div id="syncStatus" class="sync-status" aria-live="polite"></div>
   </main>
 
-  <script src="./icons.js"></script>
   <script src="./i18n.js"></script>
   <script src="./planner.js"></script>
 </body>

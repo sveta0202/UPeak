@@ -333,30 +333,37 @@
         });
       })
       .then(function (result) {
-        // Прокси отдаёт { ok, upstream: { ok, participantId } }.
         var upstream = result.parsed && result.parsed.upstream;
         var upstreamOk = !upstream || upstream.ok !== false;
         if (result.ok && (!result.parsed || result.parsed.ok !== false) && upstreamOk) {
           persistSelfControlTrait();
           showBanner("success", "participate.status.success", "Спасибо! Мы получили вашу заявку.");
-          // Показываем присвоенный ID участника, если бэкенд его вернул.
           var pid = result.parsed && (result.parsed.participantId ||
             (result.parsed.upstream && result.parsed.upstream.participantId));
+
           if (pid && statusBanner) {
+            statusBanner.innerHTML = "";
+
+            var baseLine = document.createElement("div");
+            baseLine.textContent = t("participate.status.success", "Спасибо! Мы получили вашу заявку.");
+
             var idLine = document.createElement("div");
             idLine.style.marginTop = "8px";
             idLine.style.fontWeight = "600";
             idLine.textContent = t("participate.id.assigned", "Ваш ID участника:") + " " + pid;
+
             var hintLine = document.createElement("div");
             hintLine.style.marginTop = "2px";
             hintLine.style.fontWeight = "400";
             hintLine.style.fontSize = "13px";
             hintLine.textContent = t("participate.id.hint", "Сохраните этот ID — он понадобится в прототипе-планировщике.");
+
+            statusBanner.appendChild(baseLine);
             statusBanner.appendChild(idLine);
             statusBanner.appendChild(hintLine);
           }
+
           form.reset();
-          // Clear visual selection state on radio option labels after reset.
           document.querySelectorAll(".survey-option.is-selected").forEach(function (el) {
             el.classList.remove("is-selected");
           });
