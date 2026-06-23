@@ -5,19 +5,15 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Apps Script endpoints ---------------------------------------------------
-// Планировщик (страница /planner.html) и регистрация (/participate.html) пишут в
-// РАЗНЫЕ Google-таблицы со своими Apps Script деплоями. Указывайте их URL через
-// переменные окружения. Для обратной совместимости поддерживается старое имя
-// APPS_SCRIPT_URL — оно используется как planner-URL, если новое не задано.
 const PLANNER_APPS_SCRIPT_URL =
   process.env.PLANNER_APPS_SCRIPT_URL || process.env.APPS_SCRIPT_URL || "";
-const REGISTRATION_APPS_SCRIPT_URL = process.env.REGISTRATION_APPS_SCRIPT_URL || "";
+const REGISTRATION_APPS_SCRIPT_URL =
+  process.env.REGISTRATION_APPS_SCRIPT_URL || "";
 
-// Необязательные общие токены между прокси и Apps Script.
 const PLANNER_APPS_SCRIPT_TOKEN =
   process.env.PLANNER_APPS_SCRIPT_TOKEN || process.env.APPS_SCRIPT_SHARED_TOKEN || "";
-const REGISTRATION_APPS_SCRIPT_TOKEN = process.env.REGISTRATION_APPS_SCRIPT_TOKEN || "";
+const REGISTRATION_APPS_SCRIPT_TOKEN =
+  process.env.REGISTRATION_APPS_SCRIPT_TOKEN || "";
 
 const ALLOWED_EVENT_TYPES = new Set([
   "morning_checkin",
@@ -67,6 +63,7 @@ async function callAppsScript(url, body) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
+
   const text = await response.text();
   let parsed;
   try {
@@ -74,6 +71,7 @@ async function callAppsScript(url, body) {
   } catch (_e) {
     parsed = { raw: text };
   }
+
   return { ok: response.ok, status: response.status, parsed, text };
 }
 
@@ -86,9 +84,6 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-// --- Регистрация участника ---------------------------------------------------
-// Браузер шлёт сюда JSON формы. Прокси добавляет токен и пересылает в Apps
-// Script регистрации, который присваивает ID участника и возвращает его в JSON.
 app.post("/api/register", async (req, res) => {
   try {
     if (!REGISTRATION_APPS_SCRIPT_URL) {
@@ -111,23 +106,25 @@ app.post("/api/register", async (req, res) => {
         body: upstream.text.slice(0, 500)
       });
     }
-    return res.status(200).json({ ok: true, upstream: upstream.parsed });
+
+    return res.status(200).json({
+      ok: true,
+      upstream: upstream.parsed,
+      participantId: upstream.parsed && upstream.parsed.participantId ? upstream.parsed.participantId : ""
+    });
   } catch (error) {
     console.error("POST /api/register failed", error);
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
 
-// --- Проверка ID участника ---------------------------------------------------
-// Планировщик вызывает этот эндпоинт перед сохранением «Моего ID». Прокси
-// спрашивает у регистрационного Apps Script (doGet?action=lookup&id=...),
-// есть ли такой участник в таблице participates.
 app.get("/api/participant/lookup", async (req, res) => {
   try {
     const id = sanitizeString(req.query.id, 40);
     if (!id) {
       return res.status(400).json({ ok: false, error: "id is required" });
     }
+
     if (!REGISTRATION_APPS_SCRIPT_URL) {
       return res.status(503).json({ ok: false, error: "REGISTRATION_APPS_SCRIPT_URL is not configured" });
     }
@@ -143,24 +140,28 @@ app.get("/api/participant/lookup", async (req, res) => {
 
     const response = await fetch(url, { method: "GET", redirect: "follow" });
     const text = await response.text();
-    let parsed;
+
+    let parsed = {};
     try {
       parsed = JSON.parse(text);
-    } catch (_e) {
-      parsed = {};
-    }
+    } catch (_e) {}
 
     if (!response.ok) {
       return res.status(502).json({ ok: false, error: "Apps Script upstream error", status: response.status });
     }
-    return res.status(200).json({ ok: true, exists: !!parsed.exists, id });
+
+    return res.status(200).json({
+      ok: true,
+      exists: !!parsed.exists,
+      id,
+      participant: parsed.participant || null
+    });
   } catch (error) {
     console.error("GET /api/participant/lookup failed", error);
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
 
-// --- События планировщика ----------------------------------------------------
 app.post("/api/events", async (req, res) => {
   try {
     if (!PLANNER_APPS_SCRIPT_URL) {
@@ -172,10 +173,11 @@ app.post("/api/events", async (req, res) => {
     if (!event.eventType || !ALLOWED_EVENT_TYPES.has(event.eventType)) {
       return res.status(400).json({ ok: false, error: "Invalid eventType" });
     }
+
     if (!event.timestamp || !event.date) {
       return res.status(400).json({ ok: false, error: "timestamp and date are required" });
     }
-    // Без ID участника событие не пишем — иначе строки нельзя отфильтровать по пользователю.
+
     if (!event.participantId) {
       return res.status(400).json({ ok: false, error: "participantId is required" });
     }
@@ -196,6 +198,7 @@ app.post("/api/events", async (req, res) => {
         body: upstream.text.slice(0, 500)
       });
     }
+
     return res.status(200).json({ ok: true, upstream: upstream.parsed });
   } catch (error) {
     console.error("POST /api/events failed", error);
