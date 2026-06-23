@@ -74,10 +74,444 @@
       "planner.title": "Планировщик задач по состоянию",
       "planner.home": "На лендинг",
 
+      "planner.morning.title": "1) Утренний чек-ин состояния",
+      "planner.morning.sleepHours": "Сон, часов",
+      "planner.morning.sleepQuality": "Качество сна (1-5)",
+      "planner.morning.energy": "Энергия утром (1-5)",
+      "planner.morning.wellbeing": "Самочувствие (1-5)",
+      "planner.morning.stress": "Стресс (1-5)",
+      "planner.morning.note": "Комментарий",
+      "planner.morning.notePh": "Коротко: как вы себя чувствуете",
+      "planner.morning.save": "Сохранить чек-ин",
+      "planner.readiness": "Готовность",
+
+      "planner.tasks.title": "2) Задачи на день",
+      "planner.tasks.task": "Задача",
+      "planner.tasks.taskPh": "Например, подготовить презентацию",
+      "planner.tasks.difficulty": "Сложность (1-5)",
+      "planner.tasks.urgency": "Срочность (1-5)",
+      "planner.tasks.duration": "Оценка, мин",
+      "planner.tasks.routine": "Рутина (базовая задача дня)",
+      "planner.tasks.add": "Добавить задачу",
+      "planner.tasks.saveEdit": "Сохранить изменения",
+      "planner.tasks.cancelEdit": "Отменить редактирование",
+      "planner.tasks.distribute": "Распределить по состоянию",
+
+      "planner.tasks.col.order": "№",
+      "planner.tasks.col.status": "Статус",
+      "planner.tasks.col.title": "Задача",
+      "planner.tasks.col.diff": "Сложн.",
+      "planner.tasks.col.urg": "Срочн.",
+      "planner.tasks.col.min": "Мин",
+      "planner.tasks.col.slot": "Рекомендованный слот",
+      "planner.tasks.col.actions": "Действия",
+      "planner.tasks.empty": "Пока нет задач на день",
+      "planner.tasks.menu": "Меню задачи",
+      "planner.tasks.edit": "Редактировать",
+      "planner.tasks.delete": "Удалить",
+      "planner.tasks.postpone": "Перенести на завтра",
+      "planner.tasks.routineChip": "рутина",
+      "planner.tasks.dragHandle": "Перетащите, чтобы изменить порядок",
+      "planner.tasks.reorderHint": "Перетаскивайте задачи за ручку ⋮⋮ слева, чтобы выстроить удобный порядок.",
+      "planner.scheduled.title": "3) Запланированные на завтра",
+      "planner.scheduled.hint": "Задачи, которые после распределения по состоянию помечены как «перенести на завтра». Утром следующего дня они автоматически вернутся в основной список.",
+      "planner.scheduled.col.title": "Задача",
+      "planner.scheduled.col.diff": "Сложн.",
+      "planner.scheduled.col.urg": "Срочн.",
+      "planner.scheduled.col.min": "Мин",
+      "planner.scheduled.col.date": "Дата возврата",
+      "planner.scheduled.col.actions": "Действия",
+      "planner.scheduled.empty": "Список запланированного пуст",
+      "planner.scheduled.restore": "Вернуть сегодня",
+      "planner.scheduled.delete": "Удалить",
+
+      "planner.evening.title": "4) Вечерний итог дня",
+      "planner.evening.productivity": "Продуктивность (1-5)",
+      "planner.evening.fatigue": "Усталость к вечеру (1-5)",
+      "planner.evening.note": "Комментарий",
+      "planner.evening.notePh": "Что помогло/мешало",
+      "planner.evening.save": "Закрыть день",
+      "planner.evening.fact": "Факт",
+      "planner.evening.completed": "выполнено",
+      "planner.evening.dayClosed": "День закрыт",
+      "planner.evening.dayOpen": "День не закрыт",
+
+      "planner.sync.syncing": "Синхронизация…",
+      "planner.sync.success": "Данные сохранены",
+      "planner.sync.error": "Ошибка синхронизации",
+
+      "planner.alerts.titleRequired": "Введите название задачи",
+
+      "planner.slot.morningRoutine": "Утро (рутина)",
+      "planner.slot.morningFocus": "Утро (фокус)",
+      "planner.slot.dayOps": "День (операционка)",
+      "planner.slot.eveningLight": "Вечер (лёгкие)",
+      "planner.slot.none": "Без слота",
+      "planner.slot.postpone": "Перенести на завтра",
+      "planner.slot.simplify": "Перенести или упростить",
+
+      "participate.back": "← На главную",
+      "participate.title": "Участие в эксперименте",
+      "participate.subtitle": "Оставьте свои контакты — мы свяжемся с вами и пришлём детали 14-дневного эксперимента",
+      "participate.field.name": "Имя",
+      "participate.field.phone": "Телефон",
+      "participate.field.telegram": "Telegram",
+      "participate.field.email": "Email",
+      "participate.optional": "(необязательно)",
+      "participate.placeholder.name": "Например, Анна",
+      "participate.placeholder.phone": "+7 999 123-45-67",
+      "participate.placeholder.telegram": "@username",
+      "participate.placeholder.email": "you@example.com",
+      "participate.hint.telegram": "Можно с @ или без — например, @ivanov или ivanov",
+      "participate.hint.email": "Используем только для связи по эксперименту.",
+      "participate.error.name": "Пожалуйста, укажите имя",
+      "participate.error.phone": "Укажите корректный телефон (минимум 7 цифр)",
+      "participate.error.telegram": "Имя пользователя Telegram должно содержать 3–32 символа: латиница, цифры или _",
+      "participate.error.email": "Укажите корректный email",
+      "participate.submit": "Отправить заявку",
+      "participate.privacy": "Отправляя форму, вы соглашаетесь с тем, что мы используем эти данные только для связи по эксперименту.",
+      "participate.status.sending": "Отправляем заявку…",
+      "participate.status.success": "Спасибо! Мы получили вашу заявку и скоро свяжемся с вами.",
+      "participate.status.error": "Не удалось отправить заявку. Попробуйте ещё раз.",
+      "participate.status.network": "Ошибка сети. Проверьте соединение и повторите попытку.",
+      "participate.status.invalid": "Проверьте правильность заполнения полей.",
+      "participate.status.noUrl": "Форма ещё не настроена: укажите URL Google Apps Script.",
+
+      "participate.survey.title": "Несколько коротких вопросов",
+      "participate.survey.subtitle": "Ответы помогут нам лучше подготовить эксперимент под вас.",
+      "participate.survey.error.required": "Пожалуйста, выберите вариант ответа",
+      "participate.survey.q1.text": "Следите ли вы за своим состоянием или здоровьем?",
+      "participate.survey.q1.opt.yes": "Да, регулярно",
+      "participate.survey.q1.opt.sometimes": "Иногда",
+      "participate.survey.q1.opt.no": "Нет",
+      "participate.survey.q2.text": "Используете ли вы что-то для отслеживания: сна, тренировок, нагрузки, продуктивности, самочувствия?",
+      "participate.survey.q2.opt.yes": "Да",
+      "participate.survey.q2.opt.no": "Нет",
+      "participate.survey.q3.text": "Насколько вам знакомы такие проблемы: перегруз, усталость к концу дня, сложности с планированием, переоценка своих сил?",
+      "participate.survey.q3.opt.often": "Часто",
+      "participate.survey.q3.opt.sometimes": "Иногда",
+      "participate.survey.q3.opt.rarely": "Редко",
+      "participate.survey.q3.opt.almostNever": "Практически нет",
+
+      "participate.id.assigned": "Ваш ID участника:",
+      "participate.id.hint": "Сохраните этот ID — он понадобится в прототипе-планировщике.",
+
       "planner.id.label": "Мой ID",
       "planner.id.placeholder": "Например, UP-000001",
       "planner.id.save": "Сохранить",
       "planner.id.change": "Изменить ID",
       "planner.id.checking": "Проверяем ID…",
       "planner.id.saved": "ID сохранён. Данные синхронизируются под этим ID.",
-      "planner.id.notFound": "Такой ID не найден в списке
+      "planner.id.notFound": "Такой ID не найден в списке зарегистрированных участников.",
+      "planner.id.empty": "Введите ID участника.",
+      "planner.id.error": "Не удалось проверить ID. Попробуйте позже.",
+      "planner.id.required": "Сохраните «Мой ID», чтобы данные попадали в основную таблицу.",
+      "planner.id.locked": "ID зафиксирован. Нажмите «Изменить ID», чтобы поменять."
+    },
+    en: {
+      "meta.landing.title": "Upeak — Productivity Research",
+      "meta.landing.description": "A 14-day experiment about state and workload",
+      "meta.planner.title": "PulseBurn Planner — Prototype",
+      "meta.participate.title": "Upeak — Join the experiment",
+      "meta.participate.description": "Sign up for Upeak's 14-day productivity experiment",
+
+      "nav.research": "Research",
+      "nav.experiment": "Experiment",
+      "nav.results": "Results",
+      "nav.join": "Join",
+      "nav.lang.aria": "Interface language",
+
+      "hero.eyebrow": "Research prototype",
+      "hero.brand": "Upeak",
+      "hero.title.line1": "Why don't you keep up,",
+      "hero.title.line2": "even when you plan well?",
+      "hero.subtitle": "We are running a 14-day experiment to understand how your state affects workload and task completion",
+      "hero.cta.join": "Join the experiment",
+      "hero.cta.more": "Learn more",
+      "hero.logo.alt": "Upeak logo",
+
+      "problem.title.line1": "People plan their days the same way,",
+      "problem.title.line2": "but their state changes constantly",
+      "problem.plan.title": "Plan",
+      "problem.plan.desc": "Same every day",
+      "problem.real.title": "Reality",
+      "problem.real.desc": "Different energy and stress",
+      "problem.result.title": "Result",
+      "problem.result.desc": "Overload and fatigue",
+      "problem.gap": "This creates a gap between the plan and what you can actually do",
+      "problem.aim": "We want to understand this mechanism",
+
+      "research.title": "What we research",
+      "research.sleep": "Sleep",
+      "research.sleep.arrow": "→ Productivity",
+      "research.stress": "Stress",
+      "research.stress.arrow": "→ Overload",
+      "research.energy": "Energy",
+      "research.energy.arrow": "→ Task completion",
+      "research.plan": "Plan",
+      "research.plan.arrow": "→ Reality of execution",
+
+      "experiment.title": "How the experiment works",
+      "experiment.duration": "14 days",
+      "experiment.duration.note": "to study your patterns",
+      "experiment.week1.title": "Week 1",
+      "experiment.week1.head": "Normal life",
+      "experiment.week1.desc": "You live as usual; we just collect data about your state and task completion",
+      "experiment.week2.title": "Week 2",
+      "experiment.week2.head": "With tracking",
+      "experiment.week2.desc": "You track your state and receive workload recommendations",
+      "experiment.note": "We compare behavior and look for patterns",
+
+      "results.title": "By the end you will see",
+      "results.patterns": "Your workload patterns",
+      "results.overload": "When you overload yourself",
+      "results.influence": "How state affects task completion",
+      "results.real": "How you really work",
+
+      "disclaimer.title": "Important note",
+      "disclaimer.text1": "This is not a finished product that solves everything.",
+      "disclaimer.text2": "It is a study that helps us understand behavior and build a more accurate system in the future.",
+
+      "cta.title": "Join the study",
+      "cta.subtitle": "Help us understand how people actually work",
+
+      "planner.eyebrow": "Research prototype",
+      "planner.title": "State-aware task planner",
+      "planner.home": "Back to landing",
+
+      "planner.morning.title": "1) Morning state check-in",
+      "planner.morning.sleepHours": "Sleep, hours",
+      "planner.morning.sleepQuality": "Sleep quality (1-5)",
+      "planner.morning.energy": "Morning energy (1-5)",
+      "planner.morning.wellbeing": "Wellbeing (1-5)",
+      "planner.morning.stress": "Stress (1-5)",
+      "planner.morning.note": "Comment",
+      "planner.morning.notePh": "Briefly: how do you feel",
+      "planner.morning.save": "Save check-in",
+      "planner.readiness": "Readiness",
+
+      "planner.tasks.title": "2) Tasks for today",
+      "planner.tasks.task": "Task",
+      "planner.tasks.taskPh": "E.g., prepare a presentation",
+      "planner.tasks.difficulty": "Difficulty (1-5)",
+      "planner.tasks.urgency": "Urgency (1-5)",
+      "planner.tasks.duration": "Estimate, min",
+      "planner.tasks.routine": "Routine (baseline daily task)",
+      "planner.tasks.add": "Add task",
+      "planner.tasks.saveEdit": "Save changes",
+      "planner.tasks.cancelEdit": "Cancel editing",
+      "planner.tasks.distribute": "Distribute by state",
+
+      "planner.tasks.col.order": "#",
+      "planner.tasks.col.status": "Status",
+      "planner.tasks.col.title": "Task",
+      "planner.tasks.col.diff": "Diff.",
+      "planner.tasks.col.urg": "Urg.",
+      "planner.tasks.col.min": "Min",
+      "planner.tasks.col.slot": "Recommended slot",
+      "planner.tasks.col.actions": "Actions",
+      "planner.tasks.empty": "No tasks for today yet",
+      "planner.tasks.menu": "Task menu",
+      "planner.tasks.edit": "Edit",
+      "planner.tasks.delete": "Delete",
+      "planner.tasks.postpone": "Move to tomorrow",
+      "planner.tasks.routineChip": "routine",
+      "planner.tasks.dragHandle": "Drag to reorder",
+      "planner.tasks.reorderHint": "Drag tasks by the ⋮⋮ handle on the left to arrange them in the order you prefer.",
+      "planner.scheduled.title": "3) Scheduled for tomorrow",
+      "planner.scheduled.hint": "Tasks marked as “move to tomorrow” after state-based distribution. They return to the main list automatically the next morning.",
+      "planner.scheduled.col.title": "Task",
+      "planner.scheduled.col.diff": "Diff.",
+      "planner.scheduled.col.urg": "Urg.",
+      "planner.scheduled.col.min": "Min",
+      "planner.scheduled.col.date": "Return date",
+      "planner.scheduled.col.actions": "Actions",
+      "planner.scheduled.empty": "Nothing scheduled yet",
+      "planner.scheduled.restore": "Bring to today",
+      "planner.scheduled.delete": "Remove",
+
+      "planner.evening.title": "4) Evening summary",
+      "planner.evening.productivity": "Productivity (1-5)",
+      "planner.evening.fatigue": "Evening fatigue (1-5)",
+      "planner.evening.note": "Comment",
+      "planner.evening.notePh": "What helped / hindered",
+      "planner.evening.save": "Close the day",
+      "planner.evening.fact": "Fact",
+      "planner.evening.completed": "completed",
+      "planner.evening.dayClosed": "Day closed",
+      "planner.evening.dayOpen": "Day not closed",
+
+      "planner.sync.syncing": "Syncing…",
+      "planner.sync.success": "Saved",
+      "planner.sync.error": "Sync error",
+
+      "planner.alerts.titleRequired": "Please enter a task title",
+
+      "planner.slot.morningRoutine": "Morning (routine)",
+      "planner.slot.morningFocus": "Morning (focus)",
+      "planner.slot.dayOps": "Day (operations)",
+      "planner.slot.eveningLight": "Evening (light)",
+      "planner.slot.none": "Unscheduled",
+      "planner.slot.postpone": "Postpone to tomorrow",
+      "planner.slot.simplify": "Postpone or simplify",
+
+      "participate.back": "← Back to home",
+      "participate.title": "Join the experiment",
+      "participate.subtitle": "Leave your contact details — we'll reach out and share the 14-day experiment plan",
+      "participate.field.name": "Name",
+      "participate.field.phone": "Phone",
+      "participate.field.telegram": "Telegram",
+      "participate.field.email": "Email",
+      "participate.optional": "(optional)",
+      "participate.placeholder.name": "e.g., Anna",
+      "participate.placeholder.phone": "+1 555 123-4567",
+      "participate.placeholder.telegram": "@username",
+      "participate.placeholder.email": "you@example.com",
+      "participate.hint.telegram": "With or without @ — e.g., @ivanov or ivanov",
+      "participate.hint.email": "We'll only use it to send you the experiment details.",
+      "participate.error.name": "Please enter your name",
+      "participate.error.phone": "Please enter a valid phone (at least 7 digits)",
+      "participate.error.telegram": "Telegram username must be 3–32 chars: letters, digits or underscore",
+      "participate.error.email": "Please enter a valid email address",
+      "participate.submit": "Send request",
+      "participate.privacy": "By submitting this form you agree we use these details only to contact you about the experiment.",
+      "participate.status.sending": "Sending your request…",
+      "participate.status.success": "Thanks! We received your request and will be in touch soon.",
+      "participate.status.error": "Couldn't submit your request. Please try again.",
+      "participate.status.network": "Network error. Check your connection and try again.",
+      "participate.status.invalid": "Please double-check the form fields.",
+      "participate.status.noUrl": "The form isn't configured yet: please set the Google Apps Script URL.",
+
+      "participate.survey.title": "A few short questions",
+      "participate.survey.subtitle": "Your answers help us tailor the experiment to you.",
+      "participate.survey.error.required": "Please choose an answer",
+      "participate.survey.q1.text": "Do you track your state or health?",
+      "participate.survey.q1.opt.yes": "Yes, regularly",
+      "participate.survey.q1.opt.sometimes": "Sometimes",
+      "participate.survey.q1.opt.no": "No",
+      "participate.survey.q2.text": "Do you use anything to track sleep, workouts, workload, productivity, or wellbeing?",
+      "participate.survey.q2.opt.yes": "Yes",
+      "participate.survey.q2.opt.no": "No",
+      "participate.survey.q3.text": "How familiar are these problems: overload, end-of-day fatigue, planning difficulties, overestimating your capacity?",
+      "participate.survey.q3.opt.often": "Often",
+      "participate.survey.q3.opt.sometimes": "Sometimes",
+      "participate.survey.q3.opt.rarely": "Rarely",
+      "participate.survey.q3.opt.almostNever": "Almost never",
+
+      "participate.id.assigned": "Your participant ID:",
+      "participate.id.hint": "Save this ID — you'll need it in the planner prototype.",
+
+      "planner.id.label": "My ID",
+      "planner.id.placeholder": "e.g., UP-000001",
+      "planner.id.save": "Save",
+      "planner.id.change": "Change ID",
+      "planner.id.checking": "Checking ID…",
+      "planner.id.saved": "ID saved. Data syncs under this ID.",
+      "planner.id.notFound": "This ID was not found among registered participants.",
+      "planner.id.empty": "Enter a participant ID.",
+      "planner.id.error": "Could not verify the ID. Try again later.",
+      "planner.id.required": "Save \"My ID\" so your data reaches the main data sheet.",
+      "planner.id.locked": "ID is locked. Click \"Change ID\" to edit it."
+    }
+  };
+
+  function detectInitial() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === "ru" || saved === "en") return saved;
+    } catch (e) {}
+    var nav = (navigator.language || navigator.userLanguage || "").toLowerCase();
+    if (nav.indexOf("ru") === 0) return "ru";
+    if (nav.indexOf("en") === 0) return "en";
+    return DEFAULT_LANG;
+  }
+
+  var current = detectInitial();
+  var listeners = [];
+
+  function t(key) {
+    var dict = DICT[current] || DICT[DEFAULT_LANG];
+    if (Object.prototype.hasOwnProperty.call(dict, key)) return dict[key];
+    var fallback = DICT[DEFAULT_LANG];
+    return Object.prototype.hasOwnProperty.call(fallback, key) ? fallback[key] : key;
+  }
+
+  function applyDom(root) {
+    var scope = root || document;
+
+    scope.querySelectorAll("[data-i18n]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n");
+      el.textContent = t(key);
+    });
+
+    scope.querySelectorAll("[data-i18n-placeholder]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-placeholder");
+      el.setAttribute("placeholder", t(key));
+    });
+
+    scope.querySelectorAll("[data-i18n-aria-label]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-aria-label");
+      el.setAttribute("aria-label", t(key));
+    });
+
+    scope.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-alt");
+      el.setAttribute("alt", t(key));
+    });
+
+    scope.querySelectorAll("[data-i18n-title]").forEach(function (el) {
+      var key = el.getAttribute("data-i18n-title");
+      el.setAttribute("title", t(key));
+    });
+
+    var titleEl = document.querySelector("title[data-i18n]");
+    if (titleEl) document.title = t(titleEl.getAttribute("data-i18n"));
+
+    var descEl = document.querySelector('meta[name="description"][data-i18n]');
+    if (descEl) descEl.setAttribute("content", t(descEl.getAttribute("data-i18n")));
+
+    document.documentElement.setAttribute("lang", current);
+  }
+
+  function setLang(lang) {
+    if (lang !== "ru" && lang !== "en") return;
+    current = lang;
+    try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
+    applyDom();
+    listeners.forEach(function (cb) { try { cb(lang); } catch (e) {} });
+    var toggles = document.querySelectorAll("[data-lang-toggle]");
+    toggles.forEach(function (btn) {
+      var btnLang = btn.getAttribute("data-lang-toggle");
+      btn.setAttribute("aria-pressed", btnLang === current ? "true" : "false");
+      if (btnLang === current) btn.classList.add("is-active");
+      else btn.classList.remove("is-active");
+    });
+  }
+
+  function getLang() { return current; }
+
+  function onChange(cb) { if (typeof cb === "function") listeners.push(cb); }
+
+  function init() {
+    document.querySelectorAll("[data-lang-toggle]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setLang(btn.getAttribute("data-lang-toggle"));
+      });
+    });
+    setLang(current);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  window.UpeakI18n = {
+    t: t,
+    setLang: setLang,
+    getLang: getLang,
+    onChange: onChange,
+    apply: applyDom
+  };
+})();

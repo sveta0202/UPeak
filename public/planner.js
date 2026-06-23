@@ -5,6 +5,77 @@
   var PARTICIPANT_LOOKUP_URL = "/api/participant/lookup";
   var today = new Date().toISOString().slice(0, 10);
 
+  var FALLBACK_I18N = {
+    ru: {
+      "planner.tasks.add": "Добавить задачу",
+      "planner.tasks.saveEdit": "Сохранить изменения",
+      "planner.tasks.cancelEdit": "Отменить редактирование",
+      "planner.tasks.empty": "Пока нет задач на день",
+      "planner.tasks.edit": "Редактировать задачу",
+      "planner.tasks.delete": "Удалить задачу",
+      "planner.tasks.postpone": "Перенести задачу на завтра",
+      "planner.tasks.routineChip": "Рутина",
+      "planner.tasks.dragHandle": "Перетащите, чтобы изменить порядок",
+      "planner.scheduled.empty": "Список запланированного пуст",
+      "planner.scheduled.restore": "Вернуть задачу на сегодня",
+      "planner.scheduled.delete": "Удалить задачу",
+      "planner.sync.syncing": "Синхронизация…",
+      "planner.sync.success": "Данные сохранены",
+      "planner.sync.error": "Ошибка синхронизации",
+      "planner.evening.dayClosed": "День закрыт",
+      "planner.evening.dayOpen": "День не закрыт",
+      "planner.alerts.titleRequired": "Введите название задачи",
+      "planner.id.required": "Сохраните «Мой ID», чтобы данные попадали в основную таблицу.",
+      "planner.id.empty": "Введите ID участника.",
+      "planner.id.checking": "Проверяем ID…",
+      "planner.id.saved": "ID сохранён. Данные синхронизируются под этим ID.",
+      "planner.id.notFound": "Такой ID не найден в списке зарегистрированных участников.",
+      "planner.id.error": "Не удалось проверить ID. Попробуйте позже.",
+      "planner.id.locked": "ID зафиксирован. Нажмите «Изменить ID», чтобы поменять.",
+      "planner.slot.morningRoutine": "Утренняя рутина",
+      "planner.slot.morningFocus": "Утренний фокус",
+      "planner.slot.dayOps": "Дневная операционка",
+      "planner.slot.eveningLight": "Лёгкие задачи на вечер",
+      "planner.slot.none": "Без рекомендаций",
+      "planner.slot.postpone": "Перенести на завтра",
+      "planner.slot.simplify": "Упростить или перенести"
+    },
+    en: {
+      "planner.tasks.add": "Add task",
+      "planner.tasks.saveEdit": "Save changes",
+      "planner.tasks.cancelEdit": "Cancel editing",
+      "planner.tasks.empty": "No tasks for today yet",
+      "planner.tasks.edit": "Edit task",
+      "planner.tasks.delete": "Delete task",
+      "planner.tasks.postpone": "Move task to tomorrow",
+      "planner.tasks.routineChip": "Routine",
+      "planner.tasks.dragHandle": "Drag to reorder",
+      "planner.scheduled.empty": "Nothing scheduled yet",
+      "planner.scheduled.restore": "Bring task to today",
+      "planner.scheduled.delete": "Delete task",
+      "planner.sync.syncing": "Syncing…",
+      "planner.sync.success": "Saved",
+      "planner.sync.error": "Sync error",
+      "planner.evening.dayClosed": "Day closed",
+      "planner.evening.dayOpen": "Day not closed",
+      "planner.alerts.titleRequired": "Please enter a task title",
+      "planner.id.required": "Save \"My ID\" so your data reaches the main data sheet.",
+      "planner.id.empty": "Enter a participant ID.",
+      "planner.id.checking": "Checking ID…",
+      "planner.id.saved": "ID saved. Data syncs under this ID.",
+      "planner.id.notFound": "This ID was not found among registered participants.",
+      "planner.id.error": "Could not verify the ID. Try again later.",
+      "planner.id.locked": "ID is locked. Click \"Change ID\" to edit it.",
+      "planner.slot.morningRoutine": "Morning routine",
+      "planner.slot.morningFocus": "Morning focus",
+      "planner.slot.dayOps": "Day operations",
+      "planner.slot.eveningLight": "Light tasks for evening",
+      "planner.slot.none": "No recommendation",
+      "planner.slot.postpone": "Postpone to tomorrow",
+      "planner.slot.simplify": "Simplify or postpone"
+    }
+  };
+
   var state = loadState();
 
   var el = {
@@ -27,11 +98,21 @@
   var lastSyncStatus = "idle";
   var participantIdLocked = false;
 
+  function getLang() {
+    if (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function") {
+      return window.UpeakI18n.getLang();
+    }
+    return "ru";
+  }
+
   function t(key) {
     if (window.UpeakI18n && typeof window.UpeakI18n.t === "function") {
-      return window.UpeakI18n.t(key);
+      var translated = window.UpeakI18n.t(key);
+      if (translated && translated !== key) return translated;
     }
-    return key;
+    var lang = getLang();
+    var dict = FALLBACK_I18N[lang] || FALLBACK_I18N.ru;
+    return Object.prototype.hasOwnProperty.call(dict, key) ? dict[key] : key;
   }
 
   var SLOT_KEYS = {
@@ -873,13 +954,6 @@
         updateSyncStatus("error");
         return Promise.reject(error);
       });
-  }
-
-  function getLang() {
-    if (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function") {
-      return window.UpeakI18n.getLang();
-    }
-    return "ru";
   }
 
   function parseTaskTitle(value) {
