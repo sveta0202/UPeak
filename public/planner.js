@@ -1,6 +1,4 @@
 (function () {
-  "use strict";
-
   var KEY = "pulseburn_planner_v3";
   var LEGACY_KEY = "pulseburn_planner_v2";
   var API_URL = "/api/events";
@@ -36,38 +34,6 @@
     return key;
   }
 
-  function byId(id) {
-    return document.getElementById(id);
-  }
-
-  function getNum(id) {
-    var node = byId(id);
-    return node ? Number(node.value) : 0;
-  }
-
-  function makeId() {
-    return "task-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
-  }
-
-  function sanitizeParticipantId(value) {
-    return String(value || "").trim().toUpperCase();
-  }
-
-  function ensureSessionId() {
-    if (state.sessionId) return state.sessionId;
-    state.sessionId = "sess-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
-    saveState();
-    return state.sessionId;
-  }
-
-  function requireVerifiedParticipantId() {
-    if (participantIdLocked && state && state.participantId) return true;
-    alert(t("planner.id.required") || "Сохраните «Мой ID», чтобы данные попадали в основную таблицу.");
-    if (el.participantIdInput) el.participantIdInput.focus();
-    updateSyncStatus("error");
-    return false;
-  }
-
   var SLOT_KEYS = {
     morningRoutine: "planner.slot.morningRoutine",
     morningFocus: "planner.slot.morningFocus",
@@ -97,15 +63,12 @@
       updateDayStatus();
       updateSyncStatus(lastSyncStatus);
       refreshParticipantIdStatus();
-      if (el.taskSubmitBtn) {
-        el.taskSubmitBtn.textContent = editingTaskId ? t("planner.tasks.saveEdit") : t("planner.tasks.add");
-      }
+      el.taskSubmitBtn.textContent = editingTaskId ? t("planner.tasks.saveEdit") : t("planner.tasks.add");
     });
   }
 
   byId("morningForm").addEventListener("submit", function (event) {
     event.preventDefault();
-    if (!requireVerifiedParticipantId()) return;
 
     state.morning = {
       date: today,
@@ -125,12 +88,13 @@
     renderScheduled();
     updateFact();
     updateReadiness();
+
+    if (!requireVerifiedParticipantId()) return;
     sync("morning_checkin", state.morning);
   });
 
   byId("taskForm").addEventListener("submit", function (event) {
     event.preventDefault();
-    if (!requireVerifiedParticipantId()) return;
 
     var parsedTitle = parseTaskTitle(byId("taskTitle").value);
     var formTask = {
@@ -153,10 +117,15 @@
           ? SLOT_KEYS.morningRoutine
           : (task.slotKey === SLOT_KEYS.morningRoutine ? SLOT_KEYS.none : task.slotKey);
 
-        return Object.assign({}, task, formTask, { slotKey: nextSlotKey });
+        return Object.assign({}, task, formTask, {
+          slotKey: nextSlotKey
+        });
       });
 
-      sync("task_edited", Object.assign({ id: editingTaskId }, formTask));
+      if (requireVerifiedParticipantId()) {
+        sync("task_edited", Object.assign({ id: editingTaskId }, formTask));
+      }
+
       resetTaskFormMode(event.target);
     } else {
       var task = Object.assign({
@@ -168,7 +137,10 @@
 
       state.tasks.push(task);
       event.target.reset();
-      sync("task_created", task);
+
+      if (requireVerifiedParticipantId()) {
+        sync("task_created", task);
+      }
     }
 
     saveState();
@@ -181,13 +153,14 @@
   });
 
   byId("planBtn").addEventListener("click", function () {
-    if (!requireVerifiedParticipantId()) return;
-
     var moved = distributeTasks();
     saveState();
     renderTasks();
     renderScheduled();
     updateFact();
+
+    if (!requireVerifiedParticipantId()) return;
+
     sync("plan_generated", {
       readiness: state.readiness,
       movedToScheduled: moved,
@@ -196,20 +169,22 @@
     });
 
     if (moved > 0) {
-      sync("scheduled_added", { count: moved, scheduledFor: tomorrowISO() });
+      sync("scheduled_added", {
+        count: moved,
+        scheduledFor: tomorrowISO()
+      });
     }
   });
 
   byId("eveningForm").addEventListener("submit", function (event) {
     event.preventDefault();
-    if (!requireVerifiedParticipantId()) return;
 
     state.evening = {
       date: today,
       productivity: getNum("productivity"),
       fatigue: getNum("fatigue"),
       note: byId("eveningNote").value.trim(),
-      completed: state.tasks.filter(function (t) { return t.done; }).length,
+      completed: state.tasks.filter(function (task) { return task.done; }).length,
       total: state.tasks.length
     };
 
@@ -217,152 +192,10 @@
     saveState();
     updateFact();
     updateDayStatus();
+
+    if (!requireVerifiedParticipantId()) return;
     sync("evening_checkout", state.evening);
   });
-
-  function setParticipantIdLocked(locked) {
-    participantIdLocked = !!locked;
-
-    if (el.participantIdInput) {
-      el.participantIdInput.readOnly = participantIdLocked;
-      el.participantIdInput.disabled = false;
-    }
-
-    if (el.participantIdSaveBtn) {
-      el.participantIdSaveBtn.disabled = participantIdLocked;
-      el.participantIdSaveBtn.style.display = participantIdLocked ? "none" : "";
-    }
-
-    if (el.participantIdChangeBtn) {
-      el.participantIdChangeBtn.disabled = false;
-      el.participantIdChangeBtn.style.display = participantIdLocked ? "" : "none";
-    }
-  }
-
-  function setParticipantIdStatus(kind, text) {
-    if (!el.participantIdStatus) return;
-    el.participantIdStatus.className = "planner-id-status";
-    if (kind) el.participantIdStatus.classList.add("is-" + kind);
-    el.participantIdStatus.textContent = text || "";
-  }
-
-  function refreshParticipantIdStatus() {
-    if (!el.participantIdInput) return;
-
-    if (participantIdLocked && state.participantId) {
-      setParticipantIdStatus("success", t("planner.id.locked") || "ID зафиксирован. Нажмите «Изменить ID», чтобы поменять.");
-    } else if (state.participantId) {
-      setParticipantIdStatus("info", t("planner.id.empty") || "Введите ID участника.");
-    } else {
-      setParticipantIdStatus("info", t("planner.id.empty") || "Введите ID участника.");
-    }
-
-    setParticipantIdLocked(participantIdLocked);
-  }
-
-  function enableParticipantIdEditing() {
-    participantIdLocked = false;
-    saveState();
-    setParticipantIdLocked(false);
-
-    if (el.participantIdInput) {
-      el.participantIdInput.readOnly = false;
-      el.participantIdInput.focus();
-      el.participantIdInput.select();
-    }
-
-    setParticipantIdStatus("info", t("planner.id.empty") || "Введите ID участника.");
-    updateSyncStatus("idle");
-  }
-
-  function setupParticipantId() {
-    if (!state.participantId) state.participantId = "";
-
-    if (el.participantIdInput) {
-      el.participantIdInput.value = state.participantId || "";
-    }
-
-    participantIdLocked = !!state.participantId;
-    setParticipantIdLocked(participantIdLocked);
-    refreshParticipantIdStatus();
-
-    if (el.participantIdInput) {
-      el.participantIdInput.addEventListener("input", function () {
-        var normalized = sanitizeParticipantId(el.participantIdInput.value);
-        if (normalized !== (state.participantId || "")) {
-          participantIdLocked = false;
-          state.participantId = normalized;
-          saveState();
-          refreshParticipantIdStatus();
-        }
-      });
-    }
-
-    if (el.participantIdForm) {
-      el.participantIdForm.addEventListener("submit", function (event) {
-        event.preventDefault();
-
-        var participantId = sanitizeParticipantId(el.participantIdInput && el.participantIdInput.value);
-        if (!participantId) {
-          setParticipantIdStatus("error", t("planner.id.empty") || "Введите ID участника.");
-          if (el.participantIdInput) el.participantIdInput.focus();
-          return;
-        }
-
-        setParticipantIdStatus("info", t("planner.id.checking") || "Проверяем ID…");
-
-        fetch(PARTICIPANT_LOOKUP_URL + "?id=" + encodeURIComponent(participantId), {
-          method: "GET",
-          headers: { "Accept": "application/json" }
-        })
-          .then(function (response) {
-            return response.text().then(function (text) {
-              var parsed = null;
-              try { parsed = JSON.parse(text); } catch (_e) {}
-              return { ok: response.ok, parsed: parsed, status: response.status };
-            });
-          })
-          .then(function (result) {
-            var exists = !!(result.parsed && result.parsed.exists);
-
-            if (!result.ok) {
-              participantIdLocked = false;
-              refreshParticipantIdStatus();
-              setParticipantIdStatus("error", t("planner.id.error") || "Не удалось проверить ID. Попробуйте позже.");
-              return;
-            }
-
-            if (!exists) {
-              participantIdLocked = false;
-              state.participantId = participantId;
-              saveState();
-              setParticipantIdStatus("error", t("planner.id.notFound") || "Такой ID не найден в списке зарегистрированных участников.");
-              refreshParticipantIdStatus();
-              return;
-            }
-
-            state.participantId = participantId;
-            participantIdLocked = true;
-            saveState();
-            setParticipantIdLocked(true);
-            setParticipantIdStatus("success", t("planner.id.saved") || "ID сохранён. Данные синхронизируются под этим ID.");
-            updateSyncStatus("success");
-          })
-          .catch(function () {
-            participantIdLocked = false;
-            refreshParticipantIdStatus();
-            setParticipantIdStatus("error", t("planner.id.error") || "Не удалось проверить ID. Попробуйте позже.");
-          });
-      });
-    }
-
-    if (el.participantIdChangeBtn) {
-      el.participantIdChangeBtn.addEventListener("click", function (event) {
-        event.preventDefault();
-        enableParticipantIdEditing();
-      });
-    }
-  }
 
   function distributeTasks() {
     var readiness = state.readiness || 50;
@@ -375,7 +208,7 @@
     var kept = [];
 
     sorted.forEach(function (task) {
-      var load = task.difficulty + Math.ceil(task.duration / 45);
+      var load = Number(task.difficulty || 0) + Math.ceil(Number(task.duration || 0) / 45);
 
       if (isRoutineTask(task)) {
         task.slotKey = SLOT_KEYS.morningRoutine;
@@ -385,7 +218,7 @@
       }
 
       var isUrgent = Number(task.urgency) >= 4;
-      var tooHeavy = (readiness < 45 && task.difficulty >= 4) || task.duration >= 180;
+      var tooHeavy = (readiness < 45 && Number(task.difficulty) >= 4) || Number(task.duration) >= 180;
       var noBudget = remaining < load;
 
       if (!isUrgent && (noBudget || tooHeavy)) {
@@ -393,7 +226,7 @@
         return;
       }
 
-      if (readiness < 45 && task.difficulty >= 4 && !isUrgent) {
+      if (readiness < 45 && Number(task.difficulty) >= 4 && !isUrgent) {
         task.slotKey = SLOT_KEYS.simplify;
       } else if (load >= 6) {
         task.slotKey = slotKeys[0];
@@ -409,11 +242,13 @@
 
     state.manualOrder = false;
     kept.sort(compareTasksForDisplay);
+
     kept.forEach(function (task, idx) {
       task.order = idx;
     });
 
     var tomorrow = tomorrowISO();
+
     carry.forEach(function (task) {
       state.scheduled.push({
         id: task.id,
@@ -436,14 +271,19 @@
     if (state.lastRoutineResetDate === today) return;
 
     var routineCount = 0;
+
     state.tasks = state.tasks.map(function (task) {
       if (!isRoutineTask(task)) return task;
       routineCount += 1;
-      return Object.assign({}, task, { done: false, slotKey: SLOT_KEYS.morningRoutine });
+      return Object.assign({}, task, {
+        done: false,
+        slotKey: SLOT_KEYS.morningRoutine
+      });
     });
 
     state.lastRoutineResetDate = today;
-    if (routineCount > 0) {
+
+    if (routineCount > 0 && requireVerifiedParticipantId(false)) {
       sync("routine_activated", { count: routineCount });
     }
   }
@@ -480,132 +320,141 @@
 
     state.scheduled = stillScheduled;
     saveState();
-    sync("scheduled_restored", { count: restored.length, date: today });
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("scheduled_restored", { count: restored.length, date: today });
+    }
   }
 
   function renderTasks() {
-    if (!el.taskTableBody) return;
-
     if (!state.tasks.length) {
       el.taskTableBody.innerHTML =
-        '<tr><td colspan="8" class="table-empty">' + (t("planner.tasks.empty") || "Пока нет задач на день") + '</td></tr>';
+        '<tr><td colspan="8" class="muted">' + escapeHtml(t("planner.tasks.empty")) + "</td></tr>";
       return;
     }
 
-    el.taskTableBody.innerHTML = state.tasks.map(function (task, index) {
+    var sortedTasks = state.tasks.slice().sort(compareTasksForDisplay);
+
+    el.taskTableBody.innerHTML = sortedTasks.map(function (task, index) {
+      var slotLabel = t(task.slotKey || SLOT_KEYS.none);
+      var title = escapeHtml(task.title || "");
+      var slot = escapeHtml(slotLabel || "");
+      var routineChip = isRoutineTask(task)
+        ? '<span class="routine-chip">' + escapeHtml(t("planner.tasks.routineChip")) + "</span>"
+        : "";
+
       return [
-        '<tr data-task-id="' + escapeHtml(task.id) + '">',
-        '<td>' + (index + 1) + '</td>',
-        '<td><input type="checkbox" class="task-done-toggle" data-id="' + escapeHtml(task.id) + '"' + (task.done ? ' checked' : '') + '></td>',
-        '<td>' + escapeHtml(task.title) + (task.routine ? ' <span class="chip">' + escapeHtml(t("planner.tasks.routineChip") || "рутина") + '</span>' : '') + '</td>',
-        '<td>' + escapeHtml(String(task.difficulty)) + '</td>',
-        '<td>' + escapeHtml(String(task.urgency)) + '</td>',
-        '<td>' + escapeHtml(String(task.duration)) + '</td>',
-        '<td>' + escapeHtml(slotLabel(task.slotKey)) + '</td>',
-        '<td>' +
-          '<button type="button" class="task-edit-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.tasks.edit") || "Редактировать") + '</button> ' +
-          '<button type="button" class="task-delete-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.tasks.delete") || "Удалить") + '</button> ' +
-          '<button type="button" class="task-postpone-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.tasks.postpone") || "Перенести на завтра") + '</button>' +
-        '</td>',
-        '</tr>'
+        '<tr class="task-row" data-task-id="' + escapeAttr(task.id) + '">',
+          '<td class="order-cell">',
+            '<span class="drag-handle" title="' + escapeAttr(t("planner.tasks.dragHandle")) + '">⋮⋮</span>',
+            '<span class="order-index">' + (index + 1) + "</span>",
+          "</td>",
+          '<td><input type="checkbox" class="task-toggle" data-task-id="' + escapeAttr(task.id) + '"' + (task.done ? " checked" : "") + "></td>",
+          "<td>",
+            '<span class="task-title' + (task.done ? " task-done" : "") + '">',
+              title,
+              routineChip,
+            "</span>",
+          "</td>",
+          "<td>" + Number(task.difficulty || 0) + "</td>",
+          "<td>" + Number(task.urgency || 0) + "</td>",
+          "<td>" + Number(task.duration || 0) + "</td>",
+          '<td><span class="slot-chip">' + slot + "</span></td>",
+          '<td class="actions-cell">',
+            '<div class="table-actions">',
+              '<button type="button" class="table-action edit" data-action="edit" data-task-id="' + escapeAttr(task.id) + '">',
+                escapeHtml(t("planner.tasks.edit")),
+              "</button>",
+              '<button type="button" class="table-action danger" data-action="delete" data-task-id="' + escapeAttr(task.id) + '">',
+                escapeHtml(t("planner.tasks.delete")),
+              "</button>",
+              '<button type="button" class="table-action ghost" data-action="postpone" data-task-id="' + escapeAttr(task.id) + '">',
+                escapeHtml(t("planner.tasks.postpone")),
+              "</button>",
+            "</div>",
+          "</td>",
+        "</tr>"
       ].join("");
     }).join("");
 
     bindTaskRowActions();
+    bindTaskDragAndDrop();
   }
 
   function renderScheduled() {
-    if (!el.scheduledTableBody) return;
-
     if (!state.scheduled.length) {
       el.scheduledTableBody.innerHTML =
-        '<tr><td colspan="6" class="table-empty">' + (t("planner.scheduled.empty") || "Список запланированного пуст") + '</td></tr>';
+        '<tr><td colspan="6" class="muted">' + escapeHtml(t("planner.scheduled.empty")) + "</td></tr>";
       return;
     }
 
     el.scheduledTableBody.innerHTML = state.scheduled.map(function (task) {
       return [
-        '<tr>',
-        '<td>' + escapeHtml(task.title) + '</td>',
-        '<td>' + escapeHtml(String(task.difficulty)) + '</td>',
-        '<td>' + escapeHtml(String(task.urgency)) + '</td>',
-        '<td>' + escapeHtml(String(task.duration)) + '</td>',
-        '<td>' + escapeHtml(task.scheduledFor || "") + '</td>',
-        '<td>' +
-          '<button type="button" class="scheduled-restore-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.scheduled.restore") || "Вернуть сегодня") + '</button> ' +
-          '<button type="button" class="scheduled-delete-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.scheduled.delete") || "Удалить") + '</button>' +
-        '</td>',
-        '</tr>'
+        '<tr data-scheduled-id="' + escapeAttr(task.id || "") + '">',
+          "<td>" + escapeHtml(task.title || "") + "</td>",
+          "<td>" + Number(task.difficulty || 0) + "</td>",
+          "<td>" + Number(task.urgency || 0) + "</td>",
+          "<td>" + Number(task.duration || 0) + "</td>",
+          "<td>" + escapeHtml(task.scheduledFor || "") + "</td>",
+          '<td class="actions-cell">',
+            '<div class="table-actions">',
+              '<button type="button" class="table-action edit" data-scheduled-action="restore" data-scheduled-id="' + escapeAttr(task.id || "") + '">',
+                escapeHtml(t("planner.scheduled.restore")),
+              "</button>",
+              '<button type="button" class="table-action danger" data-scheduled-action="delete" data-scheduled-id="' + escapeAttr(task.id || "") + '">',
+                escapeHtml(t("planner.scheduled.delete")),
+              "</button>",
+            "</div>",
+          "</td>",
+        "</tr>"
       ].join("");
     }).join("");
 
-    bindScheduledRowActions();
+    bindScheduledActions();
   }
 
   function bindTaskRowActions() {
-    Array.prototype.forEach.call(document.querySelectorAll(".task-done-toggle"), function (node) {
-      node.addEventListener("change", function () {
-        if (!requireVerifiedParticipantId()) {
-          node.checked = !node.checked;
+    el.taskTableBody.querySelectorAll("[data-action]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var action = button.getAttribute("data-action");
+        var id = button.getAttribute("data-task-id");
+        if (!id) return;
+
+        if (action === "edit") {
+          startTaskEdit(id);
           return;
         }
-
-        var id = node.getAttribute("data-id");
-        state.tasks = state.tasks.map(function (task) {
-          return task.id === id ? Object.assign({}, task, { done: !!node.checked }) : task;
-        });
-        saveState();
-        renderTasks();
-        updateFact();
-        sync("task_toggled", { id: id, done: !!node.checked });
+        if (action === "delete") {
+          deleteTask(id);
+          return;
+        }
+        if (action === "postpone") {
+          postponeTask(id);
+        }
       });
     });
 
-    Array.prototype.forEach.call(document.querySelectorAll(".task-edit-btn"), function (node) {
-      node.addEventListener("click", function () {
-        var id = node.getAttribute("data-id");
-        startTaskEdit(id);
-      });
-    });
-
-    Array.prototype.forEach.call(document.querySelectorAll(".task-delete-btn"), function (node) {
-      node.addEventListener("click", function () {
-        if (!requireVerifiedParticipantId()) return;
-        var id = node.getAttribute("data-id");
-        state.tasks = state.tasks.filter(function (task) { return task.id !== id; });
-        saveState();
-        renderTasks();
-        updateFact();
-        sync("task_deleted", { id: id });
-      });
-    });
-
-    Array.prototype.forEach.call(document.querySelectorAll(".task-postpone-btn"), function (node) {
-      node.addEventListener("click", function () {
-        if (!requireVerifiedParticipantId()) return;
-        var id = node.getAttribute("data-id");
-        postponeTask(id);
+    el.taskTableBody.querySelectorAll(".task-toggle").forEach(function (checkbox) {
+      checkbox.addEventListener("change", function () {
+        toggleTask(checkbox.getAttribute("data-task-id"));
       });
     });
   }
 
-  function bindScheduledRowActions() {
-    Array.prototype.forEach.call(document.querySelectorAll(".scheduled-restore-btn"), function (node) {
-      node.addEventListener("click", function () {
-        if (!requireVerifiedParticipantId()) return;
-        var id = node.getAttribute("data-id");
-        restoreScheduledTask(id);
-      });
-    });
+  function bindScheduledActions() {
+    el.scheduledTableBody.querySelectorAll("[data-scheduled-action]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var action = button.getAttribute("data-scheduled-action");
+        var id = button.getAttribute("data-scheduled-id");
+        if (!id) return;
 
-    Array.prototype.forEach.call(document.querySelectorAll(".scheduled-delete-btn"), function (node) {
-      node.addEventListener("click", function () {
-        if (!requireVerifiedParticipantId()) return;
-        var id = node.getAttribute("data-id");
-        state.scheduled = state.scheduled.filter(function (task) { return task.id !== id; });
-        saveState();
-        renderScheduled();
-        sync("scheduled_deleted", { id: id });
+        if (action === "restore") {
+          restoreScheduledTask(id);
+          return;
+        }
+        if (action === "delete") {
+          deleteScheduledTask(id);
+        }
       });
     });
   }
@@ -616,20 +465,32 @@
 
     editingTaskId = id;
     byId("taskTitle").value = task.title || "";
-    byId("taskDifficulty").value = Number(task.difficulty) || 3;
-    byId("taskUrgency").value = Number(task.urgency) || 3;
+    byId("taskDifficulty").value = Number(task.difficulty) || 1;
+    byId("taskUrgency").value = Number(task.urgency) || 1;
     byId("taskDuration").value = Number(task.duration) || 30;
     byId("taskRoutine").checked = !!task.routine;
 
-    if (el.taskSubmitBtn) el.taskSubmitBtn.textContent = t("planner.tasks.saveEdit") || "Сохранить изменения";
-    if (el.cancelEditBtn) el.cancelEditBtn.hidden = false;
+    el.taskSubmitBtn.textContent = t("planner.tasks.saveEdit");
+    el.cancelEditBtn.classList.remove("hidden");
   }
 
   function resetTaskFormMode(form) {
     editingTaskId = null;
-    if (form) form.reset();
-    if (el.taskSubmitBtn) el.taskSubmitBtn.textContent = t("planner.tasks.add") || "Добавить задачу";
-    if (el.cancelEditBtn) el.cancelEditBtn.hidden = true;
+    if (form && typeof form.reset === "function") form.reset();
+    el.taskSubmitBtn.textContent = t("planner.tasks.add");
+    el.cancelEditBtn.classList.add("hidden");
+  }
+
+  function deleteTask(id) {
+    var task = state.tasks.find(function (item) { return item.id === id; });
+    state.tasks = state.tasks.filter(function (item) { return item.id !== id; });
+    saveState();
+    renderTasks();
+    updateFact();
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("task_deleted", task || { id: id });
+    }
   }
 
   function postponeTask(id) {
@@ -652,7 +513,18 @@
     renderTasks();
     renderScheduled();
     updateFact();
-    sync("scheduled_added", { id: id, scheduledFor: tomorrowISO() });
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("scheduled_added", {
+        id: task.id,
+        title: task.title,
+        difficulty: task.difficulty,
+        urgency: task.urgency,
+        duration: task.duration,
+        routine: !!task.routine,
+        scheduledFor: tomorrowISO()
+      });
+    }
   }
 
   function restoreScheduledTask(id) {
@@ -676,41 +548,382 @@
     renderTasks();
     renderScheduled();
     updateFact();
-    sync("scheduled_restored", { id: id, date: today });
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("scheduled_restored", {
+        id: item.id,
+        title: item.title,
+        scheduledFor: item.scheduledFor
+      });
+    }
   }
 
-  function slotLabel(slotKey) {
-    return t(slotKey || SLOT_KEYS.none) || slotKey || "";
+  function deleteScheduledTask(id) {
+    var item = state.scheduled.find(function (task) { return task.id === id; });
+    state.scheduled = state.scheduled.filter(function (task) { return task.id !== id; });
+    saveState();
+    renderScheduled();
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("scheduled_deleted", item || { id: id });
+    }
+  }
+
+  function toggleTask(id) {
+    var payload = null;
+
+    state.tasks = state.tasks.map(function (task) {
+      if (task.id !== id) return task;
+      var updated = Object.assign({}, task, { done: !task.done });
+      payload = updated;
+      return updated;
+    });
+
+    saveState();
+    renderTasks();
+    updateFact();
+
+    if (payload && requireVerifiedParticipantId(false)) {
+      sync("task_toggled", payload);
+    }
+  }
+
+  function bindTaskDragAndDrop() {
+    var rows = Array.prototype.slice.call(el.taskTableBody.querySelectorAll("tr.task-row"));
+    var draggedId = null;
+
+    rows.forEach(function (row) {
+      row.draggable = true;
+
+      row.addEventListener("dragstart", function () {
+        draggedId = row.getAttribute("data-task-id");
+        row.classList.add("dragging");
+      });
+
+      row.addEventListener("dragend", function () {
+        row.classList.remove("dragging");
+        rows.forEach(function (r) {
+          r.classList.remove("drop-before");
+          r.classList.remove("drop-after");
+        });
+      });
+
+      row.addEventListener("dragover", function (event) {
+        event.preventDefault();
+        var rect = row.getBoundingClientRect();
+        var midpoint = rect.top + rect.height / 2;
+        row.classList.toggle("drop-before", event.clientY < midpoint);
+        row.classList.toggle("drop-after", event.clientY >= midpoint);
+      });
+
+      row.addEventListener("dragleave", function () {
+        row.classList.remove("drop-before");
+        row.classList.remove("drop-after");
+      });
+
+      row.addEventListener("drop", function (event) {
+        event.preventDefault();
+
+        var targetId = row.getAttribute("data-task-id");
+        var before = row.classList.contains("drop-before");
+
+        rows.forEach(function (r) {
+          r.classList.remove("drop-before");
+          r.classList.remove("drop-after");
+        });
+
+        if (!draggedId || !targetId || draggedId === targetId) return;
+        reorderTasks(draggedId, targetId, before);
+      });
+    });
+  }
+
+  function reorderTasks(draggedId, targetId, before) {
+    var list = state.tasks.slice();
+    var fromIndex = list.findIndex(function (task) { return task.id === draggedId; });
+    var targetIndex = list.findIndex(function (task) { return task.id === targetId; });
+
+    if (fromIndex < 0 || targetIndex < 0) return;
+
+    var moved = list.splice(fromIndex, 1)[0];
+    var insertIndex = targetIndex;
+
+    if (!before && fromIndex < targetIndex) {
+      insertIndex = targetIndex;
+    } else if (!before && fromIndex > targetIndex) {
+      insertIndex = targetIndex + 1;
+    } else if (before && fromIndex < targetIndex) {
+      insertIndex = targetIndex - 1;
+    }
+
+    if (insertIndex < 0) insertIndex = 0;
+    if (insertIndex > list.length) insertIndex = list.length;
+
+    list.splice(insertIndex, 0, moved);
+
+    list.forEach(function (task, index) {
+      task.order = index;
+    });
+
+    state.tasks = list;
+    state.manualOrder = true;
+    saveState();
+    renderTasks();
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("task_reordered", {
+        id: draggedId,
+        order: insertIndex
+      });
+    }
+  }
+
+  function updateFact() {
+    var done = state.tasks.filter(function (task) { return task.done; }).length;
+    var total = state.tasks.length;
+    if (el.factValue) {
+      el.factValue.textContent = done + "/" + total;
+    }
+  }
+
+  function updateReadiness() {
+    if (el.readinessValue) {
+      el.readinessValue.textContent = String(state.readiness == null ? "—" : state.readiness);
+    }
+  }
+
+  function updateDayStatus() {
+    if (!el.dayStatus) return;
+    el.dayStatus.textContent = state.dayClosedAt ? t("planner.evening.dayClosed") : t("planner.evening.dayOpen");
+  }
+
+  function updateSyncStatus(status) {
+    lastSyncStatus = status;
+    if (!el.syncStatus) return;
+
+    el.syncStatus.className = "status sync-status";
+
+    if (status === "syncing") {
+      el.syncStatus.textContent = t("planner.sync.syncing");
+      return;
+    }
+    if (status === "success") {
+      el.syncStatus.textContent = t("planner.sync.success");
+      el.syncStatus.classList.add("ok");
+      return;
+    }
+    if (status === "error") {
+      el.syncStatus.textContent = t("planner.sync.error");
+      el.syncStatus.classList.add("err");
+      return;
+    }
+
+    el.syncStatus.textContent = "";
+  }
+
+  function setupParticipantId() {
+    if (!el.participantIdForm || !el.participantIdInput) return;
+
+    state.participantId = sanitizeParticipantId(state.participantId || "");
+    participantIdLocked = !!state.participantId;
+    el.participantIdInput.value = state.participantId || "";
+
+    applyParticipantIdLockState();
+    refreshParticipantIdStatus();
+
+    el.participantIdForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      verifyAndSaveParticipantId();
+    });
+
+    if (el.participantIdChangeBtn) {
+      el.participantIdChangeBtn.addEventListener("click", function () {
+        participantIdLocked = false;
+        applyParticipantIdLockState();
+        setParticipantIdStatus("info", t("planner.id.locked"));
+        el.participantIdInput.focus();
+        el.participantIdInput.select();
+      });
+    }
+  }
+
+  function applyParticipantIdLockState() {
+    if (!el.participantIdInput) return;
+    el.participantIdInput.readOnly = participantIdLocked;
+
+    if (el.participantIdSaveBtn) {
+      el.participantIdSaveBtn.classList.toggle("hidden", participantIdLocked);
+    }
+    if (el.participantIdChangeBtn) {
+      el.participantIdChangeBtn.classList.toggle("hidden", !participantIdLocked);
+    }
+  }
+
+  function refreshParticipantIdStatus() {
+    if (!el.participantIdStatus) return;
+    if (!state.participantId) {
+      setParticipantIdStatus("", t("planner.id.required"));
+      return;
+    }
+    if (participantIdLocked) {
+      setParticipantIdStatus("ok", t("planner.id.saved"));
+      return;
+    }
+    setParticipantIdStatus("info", t("planner.id.locked"));
+  }
+
+  function setParticipantIdStatus(kind, message) {
+    if (!el.participantIdStatus) return;
+    el.participantIdStatus.className = "participant-id-status";
+    if (kind === "ok") el.participantIdStatus.classList.add("is-ok");
+    if (kind === "err") el.participantIdStatus.classList.add("is-err");
+    if (kind === "info") el.participantIdStatus.classList.add("is-info");
+    el.participantIdStatus.textContent = message || "";
+  }
+
+  function sanitizeParticipantId(value) {
+    return String(value || "").trim().toUpperCase();
+  }
+
+  function verifyAndSaveParticipantId() {
+    var participantId = sanitizeParticipantId(el.participantIdInput.value);
+    if (!participantId) {
+      setParticipantIdStatus("err", t("planner.id.empty"));
+      return;
+    }
+
+    setParticipantIdStatus("info", t("planner.id.checking"));
+
+    fetch(PARTICIPANT_LOOKUP_URL + "?id=" + encodeURIComponent(participantId), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    })
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (result) {
+        if (result && result.ok && result.exists) {
+          state.participantId = participantId;
+          saveState();
+          participantIdLocked = true;
+          applyParticipantIdLockState();
+          setParticipantIdStatus("ok", t("planner.id.saved"));
+          updateSyncStatus("idle");
+        } else {
+          participantIdLocked = false;
+          applyParticipantIdLockState();
+          setParticipantIdStatus("err", t("planner.id.notFound"));
+        }
+      })
+      .catch(function () {
+        participantIdLocked = false;
+        applyParticipantIdLockState();
+        setParticipantIdStatus("err", t("planner.id.error"));
+      });
+  }
+
+  function requireVerifiedParticipantId(showAlert) {
+    if (participantIdLocked && state && state.participantId) return true;
+    if (showAlert !== false) {
+      alert(t("planner.id.required"));
+    }
+    if (el.participantIdInput) el.participantIdInput.focus();
+    updateSyncStatus("error");
+    return false;
+  }
+
+  function sync(eventType, payload) {
+    if (!requireVerifiedParticipantId(false)) return Promise.resolve({ skipped: true });
+
+    updateSyncStatus("syncing");
+
+    var body = {
+      source: "pulseburn-planner",
+      eventType: eventType,
+      timestamp: new Date().toISOString(),
+      date: today,
+      sessionId: state.sessionId,
+      participantId: state.participantId || "",
+      userId: state.participantId || "",
+      userName: state.participantId || "",
+      language: getLang(),
+      sourcePage: location.pathname,
+      readiness: state.readiness == null ? "" : state.readiness,
+      tasksCount: state.tasks.length,
+      doneCount: state.tasks.filter(function (task) { return task.done; }).length,
+      scheduledCount: state.scheduled.length,
+      payload: payload || {}
+    };
+
+    return fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
+      .then(function (response) {
+        if (!response.ok) throw new Error("sync_failed");
+        return response.json();
+      })
+      .then(function (result) {
+        if (!result || result.ok === false) throw new Error("sync_failed");
+        updateSyncStatus("success");
+        return result;
+      })
+      .catch(function (error) {
+        updateSyncStatus("error");
+        return Promise.reject(error);
+      });
+  }
+
+  function getLang() {
+    if (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function") {
+      return window.UpeakI18n.getLang();
+    }
+    return "ru";
+  }
+
+  function parseTaskTitle(value) {
+    return {
+      title: String(value || "").trim()
+    };
   }
 
   function comparePriority(a, b) {
-    var pa = Number(a.urgency || 0) * 10 + Number(a.difficulty || 0);
-    var pb = Number(b.urgency || 0) * 10 + Number(b.difficulty || 0);
-    return pb - pa;
+    var scoreA = Number(a.urgency || 0) * 10 + Number(a.difficulty || 0);
+    var scoreB = Number(b.urgency || 0) * 10 + Number(b.difficulty || 0);
+    return scoreB - scoreA;
   }
 
   function compareTasksForDisplay(a, b) {
-    var orderA = Number(a.order || 0);
-    var orderB = Number(b.order || 0);
-    return orderA - orderB;
+    if (state.manualOrder) {
+      return Number(a.order || 0) - Number(b.order || 0);
+    }
+
+    var orderMap = {};
+    orderMap[SLOT_KEYS.morningRoutine] = 0;
+    orderMap[SLOT_KEYS.morningFocus] = 1;
+    orderMap[SLOT_KEYS.dayOps] = 2;
+    orderMap[SLOT_KEYS.eveningLight] = 3;
+    orderMap[SLOT_KEYS.simplify] = 4;
+    orderMap[SLOT_KEYS.postpone] = 5;
+    orderMap[SLOT_KEYS.none] = 6;
+
+    var slotDiff = (orderMap[a.slotKey] || 99) - (orderMap[b.slotKey] || 99);
+    if (slotDiff !== 0) return slotDiff;
+
+    var doneDiff = Number(!!a.done) - Number(!!b.done);
+    if (doneDiff !== 0) return doneDiff;
+
+    return Number(a.order || 0) - Number(b.order || 0);
   }
 
   function isRoutineTask(task) {
     return !!(task && task.routine);
   }
 
-  function nextOrder() {
-    if (!state.tasks.length) return 1;
-    return Math.max.apply(null, state.tasks.map(function (task) {
-      return Number(task.order || 0);
-    })) + 1;
-  }
-
-  function parseTaskTitle(value) {
-    return { title: String(value || "").trim() };
-  }
-
   function calcReadiness(morning) {
+    if (!morning) return 50;
+
     var sleepHours = Number(morning.sleepHours || 0);
     var sleepQuality = Number(morning.sleepQuality || 0);
     var energy = Number(morning.energy || 0);
@@ -718,140 +931,88 @@
     var stress = Number(morning.stress || 0);
 
     var score =
-      Math.min(100, Math.max(0,
-        sleepHours * 8 +
-        sleepQuality * 10 +
-        energy * 12 +
-        wellbeing * 10 -
-        stress * 8
-      ));
+      Math.min(10, sleepHours) * 5 +
+      sleepQuality * 10 +
+      energy * 20 +
+      wellbeing * 15 -
+      stress * 10;
 
-    return Math.round(score);
-  }
-
-  function updateFact() {
-    if (!el.factValue) return;
-    var done = state.tasks.filter(function (task) { return task.done; }).length;
-    var total = state.tasks.length;
-    el.factValue.textContent = done + "/" + total + " " + (t("planner.evening.completed") || "выполнено");
-  }
-
-  function updateReadiness() {
-    if (!el.readinessValue) return;
-    el.readinessValue.textContent = String(state.readiness == null ? "—" : state.readiness);
-  }
-
-  function updateDayStatus() {
-    if (!el.dayStatus) return;
-    el.dayStatus.textContent = state.dayClosedAt
-      ? (t("planner.evening.dayClosed") || "День закрыт")
-      : (t("planner.evening.dayOpen") || "День не закрыт");
-  }
-
-  function updateSyncStatus(status) {
-    lastSyncStatus = status;
-    if (!el.syncStatus) return;
-
-    var text = "";
-    if (status === "syncing") text = t("planner.sync.syncing") || "Синхронизация…";
-    else if (status === "success") text = t("planner.sync.success") || "Данные сохранены";
-    else if (status === "error") text = t("planner.sync.error") || "Ошибка синхронизации";
-
-    el.syncStatus.textContent = text;
-    el.syncStatus.setAttribute("data-status", status || "idle");
-  }
-
-  function sync(eventType, payload) {
-    if (!participantIdLocked || !state.participantId) {
-      updateSyncStatus("idle");
-      return Promise.resolve({ skipped: true });
-    }
-
-    updateSyncStatus("syncing");
-
-    return fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: "pulseburn-planner",
-        eventType: eventType,
-        timestamp: new Date().toISOString(),
-        date: today,
-        sessionId: ensureSessionId(),
-        participantId: state.participantId || "",
-        userName: state.participantId || "",
-        language: document.documentElement.getAttribute("lang") || "ru",
-        sourcePage: window.location.pathname || "/planner.html",
-        readiness: state.readiness == null ? "" : state.readiness,
-        tasksCount: Array.isArray(state.tasks) ? state.tasks.length : 0,
-        doneCount: Array.isArray(state.tasks) ? state.tasks.filter(function (t) { return t.done; }).length : 0,
-        scheduledCount: Array.isArray(state.scheduled) ? state.scheduled.length : 0,
-        payload: payload || {}
-      })
-    })
-      .then(function (response) {
-        if (!response.ok) throw new Error("sync_failed");
-        return response.json();
-      })
-      .then(function (data) {
-        updateSyncStatus("success");
-        return data;
-      })
-      .catch(function (error) {
-        updateSyncStatus("error");
-        throw error;
-      });
-  }
-
-  function migrateSlots() {
-    if (!Array.isArray(state.tasks)) state.tasks = [];
-    if (!Array.isArray(state.scheduled)) state.scheduled = [];
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    return score;
   }
 
   function tomorrowISO() {
-    var d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().slice(0, 10);
+    var date = new Date();
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().slice(0, 10);
+  }
+
+  function nextOrder() {
+    if (!state.tasks.length) return 0;
+    return Math.max.apply(null, state.tasks.map(function (task) {
+      return Number(task.order || 0);
+    })) + 1;
+  }
+
+  function makeId() {
+    return "task_" + Math.random().toString(36).slice(2, 10);
+  }
+
+  function getNum(id) {
+    var node = byId(id);
+    return Number(node && node.value ? node.value : 0);
+  }
+
+  function byId(id) {
+    return document.getElementById(id);
   }
 
   function loadState() {
-    try {
-      var raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        return Object.assign({
-          morning: null,
-          evening: null,
-          readiness: null,
-          tasks: [],
-          scheduled: [],
-          manualOrder: false,
-          lastRoutineResetDate: "",
-          dayClosedAt: "",
-          participantId: "",
-          sessionId: ""
-        }, parsed || {});
-      }
-    } catch (_e) {}
-
-    return {
+    var empty = {
+      sessionId: "sess_" + Math.random().toString(36).slice(2, 10),
+      participantId: "",
       morning: null,
       evening: null,
-      readiness: null,
+      readiness: 50,
       tasks: [],
       scheduled: [],
-      manualOrder: false,
-      lastRoutineResetDate: "",
       dayClosedAt: "",
-      participantId: "",
-      sessionId: ""
+      manualOrder: false,
+      lastRoutineResetDate: ""
     };
+
+    try {
+      var saved = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
+      if (!saved) return empty;
+      return Object.assign({}, empty, JSON.parse(saved));
+    } catch (_e) {
+      return empty;
+    }
   }
 
   function saveState() {
     try {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch (_e) {}
+  }
+
+  function migrateSlots() {
+    if (!Array.isArray(state.tasks)) state.tasks = [];
+    state.tasks = state.tasks.map(function (task) {
+      if (!task || typeof task !== "object") return task;
+
+      var slotKey = task.slotKey || task.slot || SLOT_KEYS.none;
+
+      if (slotKey === "morningRoutine") slotKey = SLOT_KEYS.morningRoutine;
+      if (slotKey === "morningFocus") slotKey = SLOT_KEYS.morningFocus;
+      if (slotKey === "dayOps") slotKey = SLOT_KEYS.dayOps;
+      if (slotKey === "eveningLight") slotKey = SLOT_KEYS.eveningLight;
+      if (slotKey === "none") slotKey = SLOT_KEYS.none;
+      if (slotKey === "postpone") slotKey = SLOT_KEYS.postpone;
+      if (slotKey === "simplify") slotKey = SLOT_KEYS.simplify;
+
+      return Object.assign({}, task, { slotKey: slotKey });
+    });
   }
 
   function escapeHtml(value) {
@@ -861,5 +1022,9 @@
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value);
   }
 })();
