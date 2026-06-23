@@ -27,9 +27,6 @@
 
   var editingTaskId = null;
   var lastSyncStatus = "idle";
-
-  // ID считается подтверждённым только после успешной проверки в таблице Participants.
-  // Без него планировщик работает локально, но не отправляет данные в Google Sheets.
   var participantIdLocked = false;
 
   function t(key) {
@@ -44,8 +41,8 @@
   }
 
   function getNum(id) {
-    var el = byId(id);
-    return el ? Number(el.value) : 0;
+    var node = byId(id);
+    return node ? Number(node.value) : 0;
   }
 
   function makeId() {
@@ -56,15 +53,21 @@
     return String(value || "").trim().toUpperCase();
   }
 
+  function ensureSessionId() {
+    if (state.sessionId) return state.sessionId;
+    state.sessionId = "sess-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    saveState();
+    return state.sessionId;
+  }
+
   function requireVerifiedParticipantId() {
     if (participantIdLocked && state && state.participantId) return true;
-    alert(t("planner.participantId.required") || "Введите и подтвердите ID участника перед отправкой данных.");
+    alert(t("planner.id.required") || "Сохраните «Мой ID», чтобы данные попадали в основную таблицу.");
     if (el.participantIdInput) el.participantIdInput.focus();
     updateSyncStatus("error");
     return false;
   }
 
-  // Slot keys are stored canonically; localized labels come from i18n.
   var SLOT_KEYS = {
     morningRoutine: "planner.slot.morningRoutine",
     morningFocus: "planner.slot.morningFocus",
@@ -84,7 +87,6 @@
   updateDayStatus();
   updateSyncStatus("idle");
   setupParticipantId();
-  refreshParticipantIdStatus();
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(function () {
@@ -95,7 +97,9 @@
       updateDayStatus();
       updateSyncStatus(lastSyncStatus);
       refreshParticipantIdStatus();
-      el.taskSubmitBtn.textContent = editingTaskId ? t("planner.tasks.saveEdit") : t("planner.tasks.add");
+      if (el.taskSubmitBtn) {
+        el.taskSubmitBtn.textContent = editingTaskId ? t("planner.tasks.saveEdit") : t("planner.tasks.add");
+      }
     });
   }
 
@@ -184,7 +188,6 @@
     renderTasks();
     renderScheduled();
     updateFact();
-
     sync("plan_generated", {
       readiness: state.readiness,
       movedToScheduled: moved,
@@ -217,133 +220,150 @@
     sync("evening_checkout", state.evening);
   });
 
-  function setupParticipantId() {
-    if (!el.participantIdForm || !el.participantIdInput) return;
+  function setParticipantIdLocked(locked) {
+    participantIdLocked = !!locked;
 
-    if (state.participantId) {
-      el.participantIdInput.value = state.participantId;
-      participantIdLocked = !!state.participantIdVerified;
-      setParticipantInputLocked(participantIdLocked);
+    if (el.participantIdInput) {
+      el.participantIdInput.readOnly = participantIdLocked;
+      el.participantIdInput.disabled = false;
     }
 
-    el.participantIdForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-      verifyAndSaveParticipantId();
-    });
-
     if (el.participantIdSaveBtn) {
-      el.participantIdSaveBtn.addEventListener("click", function (event) {
+      el.participantIdSaveBtn.disabled = participantIdLocked;
+      el.participantIdSaveBtn.style.display = participantIdLocked ? "none" : "";
+    }
+
+    if (el.participantIdChangeBtn) {
+      el.participantIdChangeBtn.disabled = false;
+      el.participantIdChangeBtn.style.display = participantIdLocked ? "" : "none";
+    }
+  }
+
+  function setParticipantIdStatus(kind, text) {
+    if (!el.participantIdStatus) return;
+    el.participantIdStatus.className = "planner-id-status";
+    if (kind) el.participantIdStatus.classList.add("is-" + kind);
+    el.participantIdStatus.textContent = text || "";
+  }
+
+  function refreshParticipantIdStatus() {
+    if (!el.participantIdInput) return;
+
+    if (participantIdLocked && state.participantId) {
+      setParticipantIdStatus("success", t("planner.id.locked") || "ID зафиксирован. Нажмите «Изменить ID», чтобы поменять.");
+    } else if (state.participantId) {
+      setParticipantIdStatus("info", t("planner.id.empty") || "Введите ID участника.");
+    } else {
+      setParticipantIdStatus("info", t("planner.id.empty") || "Введите ID участника.");
+    }
+
+    setParticipantIdLocked(participantIdLocked);
+  }
+
+  function enableParticipantIdEditing() {
+    participantIdLocked = false;
+    saveState();
+    setParticipantIdLocked(false);
+
+    if (el.participantIdInput) {
+      el.participantIdInput.readOnly = false;
+      el.participantIdInput.focus();
+      el.participantIdInput.select();
+    }
+
+    setParticipantIdStatus("info", t("planner.id.empty") || "Введите ID участника.");
+    updateSyncStatus("idle");
+  }
+
+  function setupParticipantId() {
+    if (!state.participantId) state.participantId = "";
+
+    if (el.participantIdInput) {
+      el.participantIdInput.value = state.participantId || "";
+    }
+
+    participantIdLocked = !!state.participantId;
+    setParticipantIdLocked(participantIdLocked);
+    refreshParticipantIdStatus();
+
+    if (el.participantIdInput) {
+      el.participantIdInput.addEventListener("input", function () {
+        var normalized = sanitizeParticipantId(el.participantIdInput.value);
+        if (normalized !== (state.participantId || "")) {
+          participantIdLocked = false;
+          state.participantId = normalized;
+          saveState();
+          refreshParticipantIdStatus();
+        }
+      });
+    }
+
+    if (el.participantIdForm) {
+      el.participantIdForm.addEventListener("submit", function (event) {
         event.preventDefault();
-        verifyAndSaveParticipantId();
+
+        var participantId = sanitizeParticipantId(el.participantIdInput && el.participantIdInput.value);
+        if (!participantId) {
+          setParticipantIdStatus("error", t("planner.id.empty") || "Введите ID участника.");
+          if (el.participantIdInput) el.participantIdInput.focus();
+          return;
+        }
+
+        setParticipantIdStatus("info", t("planner.id.checking") || "Проверяем ID…");
+
+        fetch(PARTICIPANT_LOOKUP_URL + "?id=" + encodeURIComponent(participantId), {
+          method: "GET",
+          headers: { "Accept": "application/json" }
+        })
+          .then(function (response) {
+            return response.text().then(function (text) {
+              var parsed = null;
+              try { parsed = JSON.parse(text); } catch (_e) {}
+              return { ok: response.ok, parsed: parsed, status: response.status };
+            });
+          })
+          .then(function (result) {
+            var exists = !!(result.parsed && result.parsed.exists);
+
+            if (!result.ok) {
+              participantIdLocked = false;
+              refreshParticipantIdStatus();
+              setParticipantIdStatus("error", t("planner.id.error") || "Не удалось проверить ID. Попробуйте позже.");
+              return;
+            }
+
+            if (!exists) {
+              participantIdLocked = false;
+              state.participantId = participantId;
+              saveState();
+              setParticipantIdStatus("error", t("planner.id.notFound") || "Такой ID не найден в списке зарегистрированных участников.");
+              refreshParticipantIdStatus();
+              return;
+            }
+
+            state.participantId = participantId;
+            participantIdLocked = true;
+            saveState();
+            setParticipantIdLocked(true);
+            setParticipantIdStatus("success", t("planner.id.saved") || "ID сохранён. Данные синхронизируются под этим ID.");
+            updateSyncStatus("success");
+          })
+          .catch(function () {
+            participantIdLocked = false;
+            refreshParticipantIdStatus();
+            setParticipantIdStatus("error", t("planner.id.error") || "Не удалось проверить ID. Попробуйте позже.");
+          });
       });
     }
 
     if (el.participantIdChangeBtn) {
       el.participantIdChangeBtn.addEventListener("click", function (event) {
         event.preventDefault();
-        participantIdLocked = false;
-        state.participantIdVerified = false;
-        setParticipantInputLocked(false);
-        refreshParticipantIdStatus("idle");
-        saveState();
-        el.participantIdInput.focus();
+        enableParticipantIdEditing();
       });
     }
   }
 
-  function setParticipantInputLocked(locked) {
-    if (!el.participantIdInput) return;
-    el.participantIdInput.readOnly = !!locked;
-    if (el.participantIdSaveBtn) el.participantIdSaveBtn.disabled = !!locked;
-    if (el.participantIdChangeBtn) el.participantIdChangeBtn.disabled = !locked;
-  }
-
-  function refreshParticipantIdStatus(mode, text) {
-    if (!el.participantIdStatus) return;
-
-    var status = mode || (participantIdLocked ? "ok" : "idle");
-    el.participantIdStatus.className = "participant-id-status";
-
-    if (status === "ok") {
-      el.participantIdStatus.classList.add("is-success");
-      el.participantIdStatus.textContent = text || (t("planner.participantId.verified") || "ID подтверждён");
-      return;
-    }
-
-    if (status === "loading") {
-      el.participantIdStatus.classList.add("is-info");
-      el.participantIdStatus.textContent = text || (t("planner.participantId.checking") || "Проверяем ID…");
-      return;
-    }
-
-    if (status === "error") {
-      el.participantIdStatus.classList.add("is-error");
-      el.participantIdStatus.textContent = text || (t("planner.participantId.notFound") || "ID не найден");
-      return;
-    }
-
-    el.participantIdStatus.textContent = text || (t("planner.participantId.idle") || "Введите ID участника");
-  }
-
-  function verifyAndSaveParticipantId() {
-    var raw = sanitizeParticipantId(el.participantIdInput && el.participantIdInput.value);
-    if (!raw) {
-      participantIdLocked = false;
-      state.participantId = "";
-      state.participantIdVerified = false;
-      saveState();
-      refreshParticipantIdStatus("error", t("planner.participantId.required") || "Введите ID участника");
-      return;
-    }
-
-    refreshParticipantIdStatus("loading");
-    if (el.participantIdSaveBtn) el.participantIdSaveBtn.disabled = true;
-
-    fetch(PARTICIPANT_LOOKUP_URL + "?id=" + encodeURIComponent(raw), {
-      method: "GET",
-      headers: { "Accept": "application/json" }
-    })
-      .then(function (response) {
-        return response.text().then(function (text) {
-          var parsed = {};
-          try { parsed = JSON.parse(text); } catch (_e) {}
-          return { ok: response.ok, parsed: parsed };
-        });
-      })
-      .then(function (result) {
-        if (result.ok && result.parsed && result.parsed.exists) {
-          state.participantId = raw;
-          state.participantIdVerified = true;
-          participantIdLocked = true;
-          saveState();
-          if (el.participantIdInput) el.participantIdInput.value = raw;
-          setParticipantInputLocked(true);
-          refreshParticipantIdStatus("ok");
-          updateSyncStatus("idle");
-        } else {
-          participantIdLocked = false;
-          state.participantId = raw;
-          state.participantIdVerified = false;
-          saveState();
-          setParticipantInputLocked(false);
-          refreshParticipantIdStatus("error", t("planner.participantId.notFound") || "ID не найден в таблице Participants");
-        }
-      })
-      .catch(function () {
-        participantIdLocked = false;
-        state.participantIdVerified = false;
-        saveState();
-        setParticipantInputLocked(false);
-        refreshParticipantIdStatus("error", t("planner.participantId.networkError") || "Не удалось проверить ID");
-      })
-      .then(function () {
-        if (el.participantIdSaveBtn && !participantIdLocked) {
-          el.participantIdSaveBtn.disabled = false;
-        }
-      });
-  }
-
-  // Распределение по состоянию: учитываем срочность, важность, сложность и длительность.
   function distributeTasks() {
     var readiness = state.readiness || 50;
     var budget = readiness < 40 ? 7 : readiness < 70 ? 11 : 16;
@@ -414,8 +434,8 @@
 
   function activateDailyRoutine() {
     if (state.lastRoutineResetDate === today) return;
-    var routineCount = 0;
 
+    var routineCount = 0;
     state.tasks = state.tasks.map(function (task) {
       if (!isRoutineTask(task)) return task;
       routineCount += 1;
@@ -423,7 +443,6 @@
     });
 
     state.lastRoutineResetDate = today;
-
     if (routineCount > 0) {
       sync("routine_activated", { count: routineCount });
     }
@@ -468,405 +487,371 @@
     if (!el.taskTableBody) return;
 
     if (!state.tasks.length) {
-      el.taskTableBody.innerHTML = "";
+      el.taskTableBody.innerHTML =
+        '<tr><td colspan="8" class="table-empty">' + (t("planner.tasks.empty") || "Пока нет задач на день") + '</td></tr>';
       return;
     }
 
-    var tasks = state.manualOrder ? state.tasks.slice().sort(compareByOrder) : state.tasks.slice().sort(compareTasksForDisplay);
-
-    el.taskTableBody.innerHTML = tasks.map(function (task, index) {
+    el.taskTableBody.innerHTML = state.tasks.map(function (task, index) {
       return [
-        "<tr data-task-id=\"" + escapeHtml(task.id) + "\">",
-        "<td>" + (index + 1) + "</td>",
-        "<td><input type=\"checkbox\" class=\"task-toggle\" " + (task.done ? "checked" : "") + " aria-label=\"done\"></td>",
-        "<td>" + escapeHtml(task.title) + "</td>",
-        "<td>" + escapeHtml(String(task.difficulty)) + "</td>",
-        "<td>" + escapeHtml(String(task.urgency)) + "</td>",
-        "<td>" + escapeHtml(String(task.duration)) + "</td>",
-        "<td>" + escapeHtml(t(task.slotKey || SLOT_KEYS.none)) + "</td>",
-        "<td>",
-        "<button type=\"button\" class=\"task-edit\" data-task-action=\"edit\">" + escapeHtml(t("planner.tasks.edit") || "Изменить") + "</button> ",
-        "<button type=\"button\" class=\"task-delete\" data-task-action=\"delete\">" + escapeHtml(t("planner.tasks.delete") || "Удалить") + "</button>",
-        "</td>",
-        "</tr>"
+        '<tr data-task-id="' + escapeHtml(task.id) + '">',
+        '<td>' + (index + 1) + '</td>',
+        '<td><input type="checkbox" class="task-done-toggle" data-id="' + escapeHtml(task.id) + '"' + (task.done ? ' checked' : '') + '></td>',
+        '<td>' + escapeHtml(task.title) + (task.routine ? ' <span class="chip">' + escapeHtml(t("planner.tasks.routineChip") || "рутина") + '</span>' : '') + '</td>',
+        '<td>' + escapeHtml(String(task.difficulty)) + '</td>',
+        '<td>' + escapeHtml(String(task.urgency)) + '</td>',
+        '<td>' + escapeHtml(String(task.duration)) + '</td>',
+        '<td>' + escapeHtml(slotLabel(task.slotKey)) + '</td>',
+        '<td>' +
+          '<button type="button" class="task-edit-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.tasks.edit") || "Редактировать") + '</button> ' +
+          '<button type="button" class="task-delete-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.tasks.delete") || "Удалить") + '</button> ' +
+          '<button type="button" class="task-postpone-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.tasks.postpone") || "Перенести на завтра") + '</button>' +
+        '</td>',
+        '</tr>'
       ].join("");
     }).join("");
 
-    Array.prototype.forEach.call(el.taskTableBody.querySelectorAll(".task-toggle"), function (checkbox) {
-      checkbox.addEventListener("change", onToggleTask);
-    });
-
-    Array.prototype.forEach.call(el.taskTableBody.querySelectorAll("[data-task-action=\"edit\"]"), function (btn) {
-      btn.addEventListener("click", onEditTask);
-    });
-
-    Array.prototype.forEach.call(el.taskTableBody.querySelectorAll("[data-task-action=\"delete\"]"), function (btn) {
-      btn.addEventListener("click", onDeleteTask);
-    });
+    bindTaskRowActions();
   }
 
   function renderScheduled() {
     if (!el.scheduledTableBody) return;
 
     if (!state.scheduled.length) {
-      el.scheduledTableBody.innerHTML = "";
+      el.scheduledTableBody.innerHTML =
+        '<tr><td colspan="6" class="table-empty">' + (t("planner.scheduled.empty") || "Список запланированного пуст") + '</td></tr>';
       return;
     }
 
     el.scheduledTableBody.innerHTML = state.scheduled.map(function (task) {
       return [
-        "<tr data-task-id=\"" + escapeHtml(task.id) + "\">",
-        "<td>" + escapeHtml(task.title) + "</td>",
-        "<td>" + escapeHtml(String(task.difficulty)) + "</td>",
-        "<td>" + escapeHtml(String(task.urgency)) + "</td>",
-        "<td>" + escapeHtml(String(task.duration)) + "</td>",
-        "<td>" + escapeHtml(task.scheduledFor || "") + "</td>",
-        "<td><button type=\"button\" class=\"scheduled-delete\">" + escapeHtml(t("planner.tasks.delete") || "Удалить") + "</button></td>",
-        "</tr>"
+        '<tr>',
+        '<td>' + escapeHtml(task.title) + '</td>',
+        '<td>' + escapeHtml(String(task.difficulty)) + '</td>',
+        '<td>' + escapeHtml(String(task.urgency)) + '</td>',
+        '<td>' + escapeHtml(String(task.duration)) + '</td>',
+        '<td>' + escapeHtml(task.scheduledFor || "") + '</td>',
+        '<td>' +
+          '<button type="button" class="scheduled-restore-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.scheduled.restore") || "Вернуть сегодня") + '</button> ' +
+          '<button type="button" class="scheduled-delete-btn" data-id="' + escapeHtml(task.id) + '">' + escapeHtml(t("planner.scheduled.delete") || "Удалить") + '</button>' +
+        '</td>',
+        '</tr>'
       ].join("");
     }).join("");
 
-    Array.prototype.forEach.call(el.scheduledTableBody.querySelectorAll(".scheduled-delete"), function (btn) {
-      btn.addEventListener("click", onDeleteScheduled);
+    bindScheduledRowActions();
+  }
+
+  function bindTaskRowActions() {
+    Array.prototype.forEach.call(document.querySelectorAll(".task-done-toggle"), function (node) {
+      node.addEventListener("change", function () {
+        if (!requireVerifiedParticipantId()) {
+          node.checked = !node.checked;
+          return;
+        }
+
+        var id = node.getAttribute("data-id");
+        state.tasks = state.tasks.map(function (task) {
+          return task.id === id ? Object.assign({}, task, { done: !!node.checked }) : task;
+        });
+        saveState();
+        renderTasks();
+        updateFact();
+        sync("task_toggled", { id: id, done: !!node.checked });
+      });
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll(".task-edit-btn"), function (node) {
+      node.addEventListener("click", function () {
+        var id = node.getAttribute("data-id");
+        startTaskEdit(id);
+      });
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll(".task-delete-btn"), function (node) {
+      node.addEventListener("click", function () {
+        if (!requireVerifiedParticipantId()) return;
+        var id = node.getAttribute("data-id");
+        state.tasks = state.tasks.filter(function (task) { return task.id !== id; });
+        saveState();
+        renderTasks();
+        updateFact();
+        sync("task_deleted", { id: id });
+      });
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll(".task-postpone-btn"), function (node) {
+      node.addEventListener("click", function () {
+        if (!requireVerifiedParticipantId()) return;
+        var id = node.getAttribute("data-id");
+        postponeTask(id);
+      });
     });
   }
 
-  function onToggleTask(event) {
-    if (!requireVerifiedParticipantId()) {
-      event.target.checked = !event.target.checked;
-      return;
-    }
-
-    var row = event.target.closest("tr");
-    if (!row) return;
-    var id = row.getAttribute("data-task-id");
-
-    state.tasks = state.tasks.map(function (task) {
-      if (task.id !== id) return task;
-      return Object.assign({}, task, { done: !!event.target.checked });
+  function bindScheduledRowActions() {
+    Array.prototype.forEach.call(document.querySelectorAll(".scheduled-restore-btn"), function (node) {
+      node.addEventListener("click", function () {
+        if (!requireVerifiedParticipantId()) return;
+        var id = node.getAttribute("data-id");
+        restoreScheduledTask(id);
+      });
     });
 
-    saveState();
-    updateFact();
-    updateDayStatus();
-    sync("task_toggled", {
-      id: id,
-      done: !!event.target.checked
+    Array.prototype.forEach.call(document.querySelectorAll(".scheduled-delete-btn"), function (node) {
+      node.addEventListener("click", function () {
+        if (!requireVerifiedParticipantId()) return;
+        var id = node.getAttribute("data-id");
+        state.scheduled = state.scheduled.filter(function (task) { return task.id !== id; });
+        saveState();
+        renderScheduled();
+        sync("scheduled_deleted", { id: id });
+      });
     });
   }
 
-  function onEditTask(event) {
-    var row = event.target.closest("tr");
-    if (!row) return;
-    var id = row.getAttribute("data-task-id");
+  function startTaskEdit(id) {
     var task = state.tasks.find(function (item) { return item.id === id; });
     if (!task) return;
 
     editingTaskId = id;
     byId("taskTitle").value = task.title || "";
-    byId("taskDifficulty").value = task.difficulty || 3;
-    byId("taskUrgency").value = task.urgency || 3;
-    byId("taskDuration").value = task.duration || 30;
+    byId("taskDifficulty").value = Number(task.difficulty) || 3;
+    byId("taskUrgency").value = Number(task.urgency) || 3;
+    byId("taskDuration").value = Number(task.duration) || 30;
     byId("taskRoutine").checked = !!task.routine;
 
-    if (el.taskSubmitBtn) el.taskSubmitBtn.textContent = t("planner.tasks.saveEdit");
+    if (el.taskSubmitBtn) el.taskSubmitBtn.textContent = t("planner.tasks.saveEdit") || "Сохранить изменения";
     if (el.cancelEditBtn) el.cancelEditBtn.hidden = false;
-  }
-
-  function onDeleteTask(event) {
-    if (!requireVerifiedParticipantId()) return;
-
-    var row = event.target.closest("tr");
-    if (!row) return;
-    var id = row.getAttribute("data-task-id");
-
-    var removed = null;
-    state.tasks = state.tasks.filter(function (task) {
-      if (task.id === id) {
-        removed = task;
-        return false;
-      }
-      return true;
-    });
-
-    saveState();
-    renderTasks();
-    updateFact();
-
-    if (removed) {
-      sync("task_deleted", removed);
-    }
-  }
-
-  function onDeleteScheduled(event) {
-    if (!requireVerifiedParticipantId()) return;
-
-    var row = event.target.closest("tr");
-    if (!row) return;
-    var id = row.getAttribute("data-task-id");
-
-    var removed = null;
-    state.scheduled = state.scheduled.filter(function (task) {
-      if (task.id === id) {
-        removed = task;
-        return false;
-      }
-      return true;
-    });
-
-    saveState();
-    renderScheduled();
-
-    if (removed) {
-      sync("scheduled_deleted", removed);
-    }
   }
 
   function resetTaskFormMode(form) {
     editingTaskId = null;
     if (form) form.reset();
-    if (el.taskSubmitBtn) el.taskSubmitBtn.textContent = t("planner.tasks.add");
+    if (el.taskSubmitBtn) el.taskSubmitBtn.textContent = t("planner.tasks.add") || "Добавить задачу";
     if (el.cancelEditBtn) el.cancelEditBtn.hidden = true;
   }
 
-  function calcReadiness(morning) {
-    if (!morning) return 50;
+  function postponeTask(id) {
+    var task = state.tasks.find(function (item) { return item.id === id; });
+    if (!task) return;
 
-    var sleepHours = Number(morning.sleepHours) || 0;
-    var sleepQuality = Number(morning.sleepQuality) || 0;
-    var energy = Number(morning.energy) || 0;
-    var wellbeing = Number(morning.wellbeing) || 0;
-    var stress = Number(morning.stress) || 0;
+    state.tasks = state.tasks.filter(function (item) { return item.id !== id; });
+    state.scheduled.push({
+      id: task.id,
+      title: task.title,
+      difficulty: task.difficulty,
+      urgency: task.urgency,
+      duration: task.duration,
+      routine: !!task.routine,
+      scheduledFor: tomorrowISO(),
+      addedAt: new Date().toISOString()
+    });
 
-    var sleepPart = Math.min(100, Math.max(0, (sleepHours / 8) * 100));
-    var qualityPart = (sleepQuality / 5) * 100;
-    var energyPart = (energy / 5) * 100;
-    var wellbeingPart = (wellbeing / 5) * 100;
-    var stressPenalty = ((5 - stress) / 5) * 100;
-
-    return Math.round(
-      sleepPart * 0.2 +
-      qualityPart * 0.2 +
-      energyPart * 0.25 +
-      wellbeingPart * 0.2 +
-      stressPenalty * 0.15
-    );
+    saveState();
+    renderTasks();
+    renderScheduled();
+    updateFact();
+    sync("scheduled_added", { id: id, scheduledFor: tomorrowISO() });
   }
 
-  function updateReadiness() {
-    if (!el.readinessValue) return;
-    el.readinessValue.textContent = String(state.readiness || 0);
+  function restoreScheduledTask(id) {
+    var item = state.scheduled.find(function (task) { return task.id === id; });
+    if (!item) return;
+
+    state.scheduled = state.scheduled.filter(function (task) { return task.id !== id; });
+    state.tasks.push({
+      id: item.id || makeId(),
+      title: item.title,
+      difficulty: Number(item.difficulty) || 3,
+      urgency: Number(item.urgency) || 3,
+      duration: Number(item.duration) || 30,
+      routine: !!item.routine,
+      done: false,
+      order: nextOrder(),
+      slotKey: item.routine ? SLOT_KEYS.morningRoutine : SLOT_KEYS.none
+    });
+
+    saveState();
+    renderTasks();
+    renderScheduled();
+    updateFact();
+    sync("scheduled_restored", { id: id, date: today });
   }
 
-  function updateFact() {
-    if (!el.factValue) return;
-    var done = state.tasks.filter(function (task) { return task.done; }).length;
-    var total = state.tasks.length;
-    el.factValue.textContent = done + "/" + total;
-  }
-
-  function updateDayStatus() {
-    if (!el.dayStatus) return;
-
-    if (state.dayClosedAt) {
-      el.dayStatus.textContent = t("planner.day.closed") || "День закрыт";
-      return;
-    }
-
-    if (!state.tasks.length) {
-      el.dayStatus.textContent = t("planner.day.empty") || "Добавьте задачи";
-      return;
-    }
-
-    var done = state.tasks.filter(function (task) { return task.done; }).length;
-    if (done === state.tasks.length) {
-      el.dayStatus.textContent = t("planner.day.done") || "Все задачи выполнены";
-    } else {
-      el.dayStatus.textContent = t("planner.day.inProgress") || "День в процессе";
-    }
-  }
-
-  function updateSyncStatus(status) {
-    lastSyncStatus = status;
-    if (!el.syncStatus) return;
-
-    el.syncStatus.className = "sync-status";
-
-    if (status === "ok") {
-      el.syncStatus.classList.add("is-success");
-      el.syncStatus.textContent = t("planner.sync.ok") || "Данные отправлены";
-      return;
-    }
-
-    if (status === "syncing") {
-      el.syncStatus.classList.add("is-info");
-      el.syncStatus.textContent = t("planner.sync.syncing") || "Синхронизация…";
-      return;
-    }
-
-    if (status === "error") {
-      el.syncStatus.classList.add("is-error");
-      el.syncStatus.textContent = t("planner.sync.error") || "Ошибка синхронизации";
-      return;
-    }
-
-    if (!participantIdLocked) {
-      el.syncStatus.textContent = t("planner.sync.waitingId") || "Введите ID участника для отправки данных";
-      return;
-    }
-
-    el.syncStatus.textContent = t("planner.sync.idle") || "Готово к синхронизации";
-  }
-
-  function sync(eventType, payload) {
-    if (!participantIdLocked || !state.participantId) {
-      updateSyncStatus("error");
-      return Promise.resolve({ ok: false, skipped: true, error: "participantId_required" });
-    }
-
-    updateSyncStatus("syncing");
-
-    var body = {
-      source: "pulseburn_planner",
-      eventType: eventType,
-      timestamp: new Date().toISOString(),
-      date: today,
-      sessionId: state.sessionId,
-      participantId: state.participantId || "",
-      userName: state.participantId || "",
-      language: getLang(),
-      sourcePage: window.location.pathname || "/planner.html",
-      readiness: state.readiness == null ? "" : state.readiness,
-      tasksCount: state.tasks.length,
-      doneCount: state.tasks.filter(function (task) { return task.done; }).length,
-      scheduledCount: state.scheduled.length,
-      payload: payload || {}
-    };
-
-    return fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    })
-      .then(function (response) {
-        return response.text().then(function (text) {
-          var parsed = {};
-          try { parsed = JSON.parse(text); } catch (_e) {}
-          return { ok: response.ok, parsed: parsed };
-        });
-      })
-      .then(function (result) {
-        updateSyncStatus(result.ok ? "ok" : "error");
-        return result;
-      })
-      .catch(function () {
-        updateSyncStatus("error");
-        return { ok: false, error: "network_error" };
-      });
-  }
-
-  function getLang() {
-    if (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function") {
-      return window.UpeakI18n.getLang();
-    }
-    return document.documentElement.getAttribute("lang") || "ru";
-  }
-
-  function loadState() {
-    var base = {
-      sessionId: generateSessionId(),
-      participantId: "",
-      participantIdVerified: false,
-      morning: null,
-      evening: null,
-      readiness: 0,
-      tasks: [],
-      scheduled: [],
-      manualOrder: false,
-      lastRoutineResetDate: "",
-      dayClosedAt: ""
-    };
-
-    try {
-      var raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
-      if (!raw) return base;
-      var parsed = JSON.parse(raw);
-      return Object.assign(base, parsed || {});
-    } catch (_e) {
-      return base;
-    }
-  }
-
-  function saveState() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch (_e) {}
-  }
-
-  function generateSessionId() {
-    try {
-      if (window.crypto && typeof window.crypto.randomUUID === "function") {
-        return window.crypto.randomUUID();
-      }
-    } catch (_e) {}
-    return "sid-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
-  }
-
-  function nextOrder() {
-    if (!state.tasks.length) return 0;
-    return Math.max.apply(null, state.tasks.map(function (task) {
-      return Number(task.order) || 0;
-    })) + 1;
+  function slotLabel(slotKey) {
+    return t(slotKey || SLOT_KEYS.none) || slotKey || "";
   }
 
   function comparePriority(a, b) {
-    var ap = (Number(b.urgency) || 0) - (Number(a.urgency) || 0);
-    if (ap !== 0) return ap;
-    var ad = (Number(a.difficulty) || 0) - (Number(b.difficulty) || 0);
-    if (ad !== 0) return ad;
-    return (Number(a.duration) || 0) - (Number(b.duration) || 0);
+    var pa = Number(a.urgency || 0) * 10 + Number(a.difficulty || 0);
+    var pb = Number(b.urgency || 0) * 10 + Number(b.difficulty || 0);
+    return pb - pa;
   }
 
   function compareTasksForDisplay(a, b) {
-    var slotOrder = {};
-    slotOrder[SLOT_KEYS.morningRoutine] = 0;
-    slotOrder[SLOT_KEYS.morningFocus] = 1;
-    slotOrder[SLOT_KEYS.dayOps] = 2;
-    slotOrder[SLOT_KEYS.eveningLight] = 3;
-    slotOrder[SLOT_KEYS.simplify] = 4;
-    slotOrder[SLOT_KEYS.none] = 5;
-
-    var sa = slotOrder[a.slotKey] == null ? 99 : slotOrder[a.slotKey];
-    var sb = slotOrder[b.slotKey] == null ? 99 : slotOrder[b.slotKey];
-    if (sa !== sb) return sa - sb;
-
-    var pr = comparePriority(a, b);
-    if (pr !== 0) return pr;
-
-    return (Number(a.order) || 0) - (Number(b.order) || 0);
-  }
-
-  function compareByOrder(a, b) {
-    return (Number(a.order) || 0) - (Number(b.order) || 0);
+    var orderA = Number(a.order || 0);
+    var orderB = Number(b.order || 0);
+    return orderA - orderB;
   }
 
   function isRoutineTask(task) {
     return !!(task && task.routine);
   }
 
+  function nextOrder() {
+    if (!state.tasks.length) return 1;
+    return Math.max.apply(null, state.tasks.map(function (task) {
+      return Number(task.order || 0);
+    })) + 1;
+  }
+
   function parseTaskTitle(value) {
     return { title: String(value || "").trim() };
   }
 
-  function tomorrowISO() {
-    var date = new Date();
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().slice(0, 10);
+  function calcReadiness(morning) {
+    var sleepHours = Number(morning.sleepHours || 0);
+    var sleepQuality = Number(morning.sleepQuality || 0);
+    var energy = Number(morning.energy || 0);
+    var wellbeing = Number(morning.wellbeing || 0);
+    var stress = Number(morning.stress || 0);
+
+    var score =
+      Math.min(100, Math.max(0,
+        sleepHours * 8 +
+        sleepQuality * 10 +
+        energy * 12 +
+        wellbeing * 10 -
+        stress * 8
+      ));
+
+    return Math.round(score);
+  }
+
+  function updateFact() {
+    if (!el.factValue) return;
+    var done = state.tasks.filter(function (task) { return task.done; }).length;
+    var total = state.tasks.length;
+    el.factValue.textContent = done + "/" + total + " " + (t("planner.evening.completed") || "выполнено");
+  }
+
+  function updateReadiness() {
+    if (!el.readinessValue) return;
+    el.readinessValue.textContent = String(state.readiness == null ? "—" : state.readiness);
+  }
+
+  function updateDayStatus() {
+    if (!el.dayStatus) return;
+    el.dayStatus.textContent = state.dayClosedAt
+      ? (t("planner.evening.dayClosed") || "День закрыт")
+      : (t("planner.evening.dayOpen") || "День не закрыт");
+  }
+
+  function updateSyncStatus(status) {
+    lastSyncStatus = status;
+    if (!el.syncStatus) return;
+
+    var text = "";
+    if (status === "syncing") text = t("planner.sync.syncing") || "Синхронизация…";
+    else if (status === "success") text = t("planner.sync.success") || "Данные сохранены";
+    else if (status === "error") text = t("planner.sync.error") || "Ошибка синхронизации";
+
+    el.syncStatus.textContent = text;
+    el.syncStatus.setAttribute("data-status", status || "idle");
+  }
+
+  function sync(eventType, payload) {
+    if (!participantIdLocked || !state.participantId) {
+      updateSyncStatus("idle");
+      return Promise.resolve({ skipped: true });
+    }
+
+    updateSyncStatus("syncing");
+
+    return fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source: "pulseburn-planner",
+        eventType: eventType,
+        timestamp: new Date().toISOString(),
+        date: today,
+        sessionId: ensureSessionId(),
+        participantId: state.participantId || "",
+        userName: state.participantId || "",
+        language: document.documentElement.getAttribute("lang") || "ru",
+        sourcePage: window.location.pathname || "/planner.html",
+        readiness: state.readiness == null ? "" : state.readiness,
+        tasksCount: Array.isArray(state.tasks) ? state.tasks.length : 0,
+        doneCount: Array.isArray(state.tasks) ? state.tasks.filter(function (t) { return t.done; }).length : 0,
+        scheduledCount: Array.isArray(state.scheduled) ? state.scheduled.length : 0,
+        payload: payload || {}
+      })
+    })
+      .then(function (response) {
+        if (!response.ok) throw new Error("sync_failed");
+        return response.json();
+      })
+      .then(function (data) {
+        updateSyncStatus("success");
+        return data;
+      })
+      .catch(function (error) {
+        updateSyncStatus("error");
+        throw error;
+      });
   }
 
   function migrateSlots() {
     if (!Array.isArray(state.tasks)) state.tasks = [];
     if (!Array.isArray(state.scheduled)) state.scheduled = [];
+  }
+
+  function tomorrowISO() {
+    var d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(KEY) || localStorage.getItem(LEGACY_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        return Object.assign({
+          morning: null,
+          evening: null,
+          readiness: null,
+          tasks: [],
+          scheduled: [],
+          manualOrder: false,
+          lastRoutineResetDate: "",
+          dayClosedAt: "",
+          participantId: "",
+          sessionId: ""
+        }, parsed || {});
+      }
+    } catch (_e) {}
+
+    return {
+      morning: null,
+      evening: null,
+      readiness: null,
+      tasks: [],
+      scheduled: [],
+      manualOrder: false,
+      lastRoutineResetDate: "",
+      dayClosedAt: "",
+      participantId: "",
+      sessionId: ""
+    };
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(state));
+    } catch (_e) {}
   }
 
   function escapeHtml(value) {
