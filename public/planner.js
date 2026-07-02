@@ -157,7 +157,7 @@
 
     state.morning = {
       date: today,
-      sleepHours: getNum("sleepHours"),
+      sleepHours: getSleepHours(),
       sleepQuality: getNum("sleepQuality"),
       energy: getNum("energy"),
       stress: getNum("stress"),
@@ -165,10 +165,8 @@
     };
 
     state.readiness = calcReadiness(state.morning);
-    state.morningRecommendations = getMorningRecommendations(
-      state.morning,
-      getReadinessLevel(state.readiness)
-    );
+    state.dayState = window.UpeakDayState.computeDayStateFromMorning(state.morning);
+    state.morningRecommendations = window.UpeakDayRecommendations.getRecommendations(state.dayState);
     activateDailyRoutine();
     promoteScheduledForToday();
     saveState();
@@ -179,7 +177,9 @@
     renderMorningRecommendations();
 
     if (!requireVerifiedParticipantId()) return;
-    sync("morning_checkin", state.morning);
+    sync("morning_checkin", Object.assign({}, state.morning, {
+      dayState: state.dayState
+    }));
   });
 
   byId("taskForm").addEventListener("submit", function (event) {
@@ -314,7 +314,7 @@
 
   function distributeTasks() {
     var readiness = state.readiness || 50;
-    var budget = getDailyBudget(readiness);
+    var budget = getDailyBudget(readiness, state.dayState);
     var slotKeys = [SLOT_KEYS.morningFocus, SLOT_KEYS.dayOps, SLOT_KEYS.eveningLight];
 
     var routines = [];
@@ -849,8 +849,8 @@
     return 3;
   }
 
-  function getDailyBudget(readiness) {
-    var level = getReadinessLevel(readiness);
+  function getDailyBudget(readiness, dayState) {
+    var level = getReadinessLevelFromDayState(dayState) || getReadinessLevel(readiness);
     var budget = level === "low" ? 7 : level === "medium" ? 11 : 16;
     var selfControlTrait = getSelfControlTrait();
     if (selfControlTrait < 3 && readiness < 40) {
@@ -859,54 +859,32 @@
     return budget;
   }
 
-  function getMorningRecommendations(m, readinessLevel) {
-    var recs = [];
-
-    if (m.sleepHours < 6) {
-      recs.push({
-        text: "Сон был коротким. Сегодня лучше не перегружать день. Вечером попробуй лечь на 30 минут раньше — убери или сократи одно дело (экран, переписки, мелкие дела).",
-        why: {
-          text: "Мало сна ухудшает внимание и самоконтроль — сложнее начинать и доводить дела.",
-          source: "Lim & Dinges, 2010",
-          url: "https://pubmed.ncbi.nlm.nih.gov/21075236/"
-        }
-      });
+  function getReadinessLevelFromDayState(dayState) {
+    if (!dayState || !dayState.state) return null;
+    if (dayState.state === "emergency_recovery" || dayState.sub_state === "mixed_severe") {
+      return "low";
     }
+    if (dayState.state === "high_performance") return "high";
+    return "medium";
+  }
 
-    if (m.sleepQuality <= 2 && m.stress >= 4) {
-      recs.push({
-        text: "Сон был неспокойным, а стресс высокий. Сегодня помогут короткая прогулка, лёгкая разминка или 10–15 минут без экрана.",
-        why: {
-          text: "Отдых и отвлечение от задач помогают восстановить силы после стресса.",
-          source: "Sonnentag & Fritz, 2007",
-          url: "https://doi.org/10.1037/0021-9010.92.6.1458"
-        }
-      });
+  function getDayStateLabel(dayState) {
+    if (window.UpeakDayRecommendations && typeof window.UpeakDayRecommendations.getStateLabel === "function") {
+      return window.UpeakDayRecommendations.getStateLabel(dayState);
     }
+    return dayState && dayState.state ? dayState.state : "";
+  }
 
-    if (Number(m.energy) >= 4) {
-      recs.push({
-        text: "С утра мало сил. Начни с простых рутинных задач — без сложных решений в первые часы.",
-        why: {
-          text: "Когда энергии мало, тяжёлые задачи в начале дня чаще остаются недоделанными.",
-          source: "Krause et al., 2017",
-          url: "https://doi.org/10.1073/pnas.1617233114"
-        }
-      });
+  function updateReadiness() {
+    if (!el.readinessValue) return;
+    if (state.readiness == null) {
+      el.readinessValue.textContent = "—";
+      return;
     }
-
-    if (readinessLevel === "high") {
-      recs.push({
-        text: "С утра хорошее состояние — можно планировать важные и сложные задачи на первую половину дня.",
-        why: {
-          text: "Когда ресурсов больше, проще удерживать внимание и доводить дела до конца.",
-          source: "Muraven & Baumeister, 2000",
-          url: "https://doi.org/10.1037/0003-066X.55.1.68"
-        }
-      });
-    }
-
-    return recs;
+    var label = getDayStateLabel(state.dayState);
+    el.readinessValue.textContent = label
+      ? state.readiness + " · " + label
+      : String(state.readiness);
   }
 
   function getCompletionBand(rate) {
@@ -969,6 +947,9 @@
     }
 
     if (eveningData) {
+      if (Number(eveningData.fatigue) >= 4) {
+        summary.rec += " Высокая усталость к вечеру — сократи нагрузку и включи отключение от работы (detachment): 15–20 минут без экрана и рабочих мыслей.";
+      }
       if (Number(eveningData.procrastination) >= 4 || Number(eveningData.taskStart) >= 4) {
         summary.rec += " Сложно было начинать — завтра поставь одну самую маленькую задачу первой.";
       }
@@ -1004,10 +985,10 @@
   function refreshInterventionBlocks() {
     if (state.morning && state.morning.date === today && state.readiness != null) {
       if (!Array.isArray(state.morningRecommendations) || !state.morningRecommendations.length) {
-        state.morningRecommendations = getMorningRecommendations(
-          state.morning,
-          getReadinessLevel(state.readiness)
-        );
+        if (!state.dayState && state.morning) {
+          state.dayState = window.UpeakDayState.computeDayStateFromMorning(state.morning);
+        }
+        state.morningRecommendations = window.UpeakDayRecommendations.getRecommendations(state.dayState);
       }
       renderMorningRecommendations();
     } else {
@@ -1044,8 +1025,11 @@
     }
 
     container.classList.remove("hidden");
+    var stateLine = state.dayState
+      ? ' <span class="intervention-meta">' + escapeHtml(getDayStateLabel(state.dayState)) + "</span>"
+      : "";
     container.innerHTML =
-      '<h3 class="intervention-title">Рекомендации на сегодня</h3>' +
+      '<h3 class="intervention-title">Рекомендации на сегодня' + stateLine + "</h3>" +
       recs.map(function (rec, idx) {
         return (
           '<article class="intervention-card">' +
@@ -1104,15 +1088,10 @@
     }
   }
 
-  function updateReadiness() {
-    if (el.readinessValue) {
-      el.readinessValue.textContent = String(state.readiness == null ? "—" : state.readiness);
-    }
-  }
-
   function updateDayStatus() {
     if (!el.dayStatus) return;
-    el.dayStatus.textContent = state.dayClosedAt ? t("planner.evening.dayClosed") : t("planner.evening.dayOpen");
+    var closedToday = !!(state.dayClosedAt && state.evening && state.evening.date === today);
+    el.dayStatus.textContent = closedToday ? t("planner.evening.dayClosed") : t("planner.evening.dayOpen");
   }
 
   function updateSyncStatus(status) {
@@ -1373,6 +1352,19 @@
   function getNum(id) {
     var node = byId(id);
     return Number(node && node.value ? node.value : 0);
+  }
+
+  function getSleepHours() {
+    var node = byId("sleepHours");
+    if (!node) return 0;
+    var raw = String(node.value || "").trim().replace(",", ".");
+    var value = Number(raw);
+    if (!Number.isFinite(value)) return 0;
+    var clamped = Math.max(0, Math.min(14, value));
+    // Нормализуем к шагу в 30 минут.
+    var snapped = Math.round(clamped * 2) / 2;
+    node.value = snapped % 1 === 0 ? String(snapped) : snapped.toFixed(1);
+    return snapped;
   }
 
   function byId(id) {

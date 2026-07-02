@@ -54,19 +54,19 @@
       <form id="morningForm" class="grid checkin">
         <label class="field">
           <span class="field-question" data-i18n="planner.morning.sleepHours">Сколько часов вы спали сегодня?</span>
-          <input type="text" inputmode="decimal" id="sleepHours" placeholder="0–14 ч" data-i18n-placeholder="planner.scale.hours" required autocomplete="off" />
+          <input type="number" inputmode="decimal" id="sleepHours" placeholder="Например, 7.5 ч" data-i18n-placeholder="planner.morning.sleepHoursPh" min="0" max="14" step="0.5" required autocomplete="off" />
         </label>
         <label class="field">
           <span class="field-question" data-i18n="planner.morning.sleepQuality">Как вы оцениваете качество сна сегодня?</span>
-          <input type="text" inputmode="numeric" id="sleepQuality" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="sleepQuality" placeholder="1–5 (1 плохо, 5 отлично)" data-i18n-placeholder="planner.morning.sleepQualityPh" required autocomplete="off" />
         </label>
         <label class="field">
           <span class="field-question" data-i18n="planner.morning.energy">Сегодня утром: насколько вы чувствовали усталость и мало энергии?</span>
-          <input type="text" inputmode="numeric" id="energy" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="energy" placeholder="1–5 (1 бодро, 5 очень тяжело)" data-i18n-placeholder="planner.morning.energyPh" required autocomplete="off" />
         </label>
         <label class="field">
           <span class="field-question" data-i18n="planner.morning.stress">Сегодня утром: насколько вы чувствовали нервное напряжение или стресс?</span>
-          <input type="text" inputmode="numeric" id="stress" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="stress" placeholder="1–5 (1 спокойно, 5 сильный стресс)" data-i18n-placeholder="planner.morning.stressPh" required autocomplete="off" />
         </label>
         <label class="field full"><span class="field-question" data-i18n="planner.morning.note">Комментарий</span>
           <input id="morningNote" placeholder="Коротко: как вы себя чувствуете" data-i18n-placeholder="planner.morning.notePh" />
@@ -90,10 +90,10 @@
           <input id="taskTitle" required placeholder="Например, подготовить презентацию" data-i18n-placeholder="planner.tasks.taskPh" />
         </label>
         <label class="field field-compact"><span class="field-question" data-i18n="planner.tasks.difficulty">Сложность</span>
-          <input type="text" inputmode="numeric" id="taskDifficulty" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="taskDifficulty" placeholder="1–5 (сложность)" data-i18n-placeholder="planner.tasks.difficultyPh" required autocomplete="off" />
         </label>
         <label class="field field-compact"><span class="field-question" data-i18n="planner.tasks.urgency">Срочность</span>
-          <input type="text" inputmode="numeric" id="taskUrgency" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="taskUrgency" placeholder="1–5 (срочность)" data-i18n-placeholder="planner.tasks.urgencyPh" required autocomplete="off" />
         </label>
         <label class="field field-compact"><span class="field-question" data-i18n="planner.tasks.duration">Оценка времени</span>
           <input type="text" inputmode="numeric" id="taskDuration" placeholder="5–360 мин" data-i18n-placeholder="planner.scale.minutes" required autocomplete="off" />
@@ -162,19 +162,19 @@
       <form id="eveningForm" class="grid checkin">
         <label class="field">
           <span class="field-question" data-i18n="planner.evening.fatigue">Сегодня вечером: насколько вы устали?</span>
-          <input type="text" inputmode="numeric" id="fatigue" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="fatigue" placeholder="1–5 (усталость вечером)" data-i18n-placeholder="planner.evening.fatiguePh" required autocomplete="off" />
         </label>
         <label class="field">
           <span class="field-question" data-i18n="planner.evening.taskStart">Сегодня: насколько часто вам было трудно начать определённые дела?</span>
-          <input type="text" inputmode="numeric" id="eveningTaskStart" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="eveningTaskStart" placeholder="1–5 (сложно начать?)" data-i18n-placeholder="planner.evening.taskStartPh" required autocomplete="off" />
         </label>
         <label class="field">
           <span class="field-question" data-i18n="planner.evening.procrastination">Сегодня: насколько часто вы откладывали начало задач до позже?</span>
-          <input type="text" inputmode="numeric" id="eveningProcrastination" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="eveningProcrastination" placeholder="1–5 (откладывание)" data-i18n-placeholder="planner.evening.procrastinationPh" required autocomplete="off" />
         </label>
         <label class="field">
           <span class="field-question" data-i18n="planner.evening.detachment">Сегодня: насколько вам удалось отвлечься от работы вечером?</span>
-          <input type="text" inputmode="numeric" id="eveningDetachment" placeholder="1–5" data-i18n-placeholder="planner.scale.oneToFive" required autocomplete="off" />
+          <input type="text" inputmode="numeric" id="eveningDetachment" placeholder="1–5 (отключиться от работы)" data-i18n-placeholder="planner.evening.detachmentPh" required autocomplete="off" />
         </label>
         <label class="field full"><span class="field-question" data-i18n="planner.evening.note">Комментарий</span>
           <input id="eveningNote" placeholder="Что помогло/мешало" data-i18n-placeholder="planner.evening.notePh" />
@@ -196,6 +196,8 @@
   </main>
 
   <script src="./i18n.js"></script>
+  <script src="./day-state.js"></script>
+  <script src="./day-recommendations.js"></script>
   <script src="./planner.js"></script>
 </body>
 </html>
