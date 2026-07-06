@@ -268,6 +268,74 @@ input::placeholder { color: rgba(26, 54, 93, 0.4); }
 .intervention-rec {
   margin-bottom: 0;
 }
+.intervention-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.intervention-step {
+  margin: 0;
+}
+.intervention-step-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.intervention-step-warn .intervention-text {
+  color: #9a3412;
+}
+.intervention-plan-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 560px) {
+  .intervention-plan-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.intervention-plan-col {
+  margin: 0;
+}
+.intervention-plan-subtitle {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.intervention-step-why {
+  margin-top: 2px;
+}
+.intervention-evidence-badge {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(26, 54, 93, 0.05);
+  border-radius: 8px;
+}
+.intervention-list,
+.intervention-why-list {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.intervention-list li,
+.intervention-why-list li {
+  margin-bottom: 4px;
+}
+.intervention-why-meta {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
 .intervention-why {
   margin: 8px 0 0;
   padding: 10px 12px;
@@ -312,6 +380,67 @@ input::placeholder { color: rgba(26, 54, 93, 0.4); }
 .intervention-why-btn:hover {
   border-color: rgba(239, 68, 68, 0.35);
   color: var(--accent);
+}
+
+.intervention-embed {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.intervention-embed + .intervention-embed {
+  margin-top: 10px;
+}
+
+.intervention-embed-text {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.intervention-embed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.intervention-embed-btn {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.intervention-embed-status {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ok);
+}
+
+.task-group-spacer td {
+  height: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+tr.task-row-recommendation td {
+  background: rgba(124, 58, 237, 0.05);
+}
+
+tr.task-row-recommendation .task-title {
+  padding-left: 14px;
+}
+
+.task-group-spacer + tr.task-row td,
+tr.task-row-recommendation + tr.task-group-spacer + tr.task-row td {
+  border-top: 2px solid rgba(124, 58, 237, 0.12);
+}
+
+tr.task-group-spacer + tr.task-row-recommendation td {
+  border-top: none;
 }
 
 .btn {

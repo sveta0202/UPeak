@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test test/day-state.test.js"
+    "test": "node --test test/day-state.test.js",
+    "state-matrix": "node scripts/generate-state-matrix.js"
   },
   "engines": {
     "node": ">=20"

@@ -5,6 +5,30 @@
   var PARTICIPANT_LOOKUP_URL = "/api/participant/lookup";
   var today = new Date().toISOString().slice(0, 10);
 
+  function hasMorningCheckinToday() {
+    return !!(
+      state.morning &&
+      state.morning.date === today &&
+      state.readiness != null &&
+      state.dayState &&
+      state.dayState.state
+    );
+  }
+
+  function resetMorningDerivedState() {
+    state.readiness = null;
+    state.dayState = null;
+    state.morningRecommendations = [];
+    state.morningEmbedDecisions = {};
+    state.morningEmbedDate = "";
+  }
+
+  function sanitizeMorningSession() {
+    if (!state.morning || state.morning.date !== today) {
+      resetMorningDerivedState();
+    }
+  }
+
   var FALLBACK_I18N = {
     ru: {
       "planner.tasks.add": "Добавить задачу",
@@ -38,7 +62,10 @@
       "planner.slot.eveningLight": "Лёгкие задачи на вечер",
       "planner.slot.none": "Без рекомендаций",
       "planner.slot.postpone": "Перенести на завтра",
-      "planner.slot.simplify": "Упростить или перенести"
+      "planner.slot.simplify": "Упростить или перенести",
+      "planner.morning.embedAdd": "Добавить в план",
+      "planner.morning.embedLater": "Позже",
+      "planner.morning.embedAdded": "Добавлено в план"
     },
     en: {
       "planner.tasks.add": "Add task",
@@ -72,11 +99,15 @@
       "planner.slot.eveningLight": "Light tasks for evening",
       "planner.slot.none": "No recommendation",
       "planner.slot.postpone": "Postpone to tomorrow",
-      "planner.slot.simplify": "Simplify or postpone"
+      "planner.slot.simplify": "Simplify or postpone",
+      "planner.morning.embedAdd": "Add to plan",
+      "planner.morning.embedLater": "Later",
+      "planner.morning.embedAdded": "Added to plan"
     }
   };
 
   var state = loadState();
+  sanitizeMorningSession();
 
   var el = {
     readinessValue: byId("readinessValue"),
@@ -127,16 +158,68 @@
     simplify: "planner.slot.simplify"
   };
 
-  migrateSlots();
-  promoteScheduledForToday();
-  renderTasks();
-  renderScheduled();
-  updateFact();
-  updateReadiness();
-  updateDayStatus();
-  updateSyncStatus("idle");
-  setupParticipantId();
-  refreshInterventionBlocks();
+  function bootPlanner() {
+    migrateSlots();
+    promoteScheduledForToday();
+    renderTasks();
+    renderScheduled();
+    updateFact();
+    updateReadiness();
+    updateDayStatus();
+    updateSyncStatus("idle");
+    setupParticipantId();
+    if (state.dayState && window.UpeakDayRecommendations) {
+      state.morningRecommendations = buildMorningRecommendations();
+    }
+    if (state.evening && state.evening.date === today) {
+      refreshEveningReview();
+    }
+    refreshInterventionBlocks();
+  }
+
+  function loadRecommendationMatrix(done) {
+    var morningReady = false;
+    var eveningReady = false;
+
+    function finish() {
+      if (!morningReady || !eveningReady) return;
+      done();
+    }
+
+    fetch("./day-recommendation-matrix.json")
+      .then(function (res) {
+        if (!res.ok) throw new Error("matrix fetch failed");
+        return res.json();
+      })
+      .then(function (data) {
+        if (window.UpeakDayRecommendations && typeof window.UpeakDayRecommendations.setRecommendationMatrix === "function") {
+          window.UpeakDayRecommendations.setRecommendationMatrix(data);
+        }
+      })
+      .catch(function () {})
+      .then(function () {
+        morningReady = true;
+        finish();
+      });
+
+    fetch("./evening-recommendation-matrix.json")
+      .then(function (res) {
+        if (!res.ok) throw new Error("evening matrix fetch failed");
+        return res.json();
+      })
+      .then(function (data) {
+        if (window.UpeakEveningRecommendations && typeof window.UpeakEveningRecommendations.setEveningMatrix === "function") {
+          window.UpeakEveningRecommendations.setEveningMatrix(data);
+        }
+      })
+      .catch(function () {})
+      .then(function () {
+        eveningReady = true;
+        finish();
+      });
+  }
+
+  loadRecommendationMatrix(bootPlanner);
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(function () {
@@ -166,7 +249,9 @@
 
     state.readiness = calcReadiness(state.morning);
     state.dayState = window.UpeakDayState.computeDayStateFromMorning(state.morning);
-    state.morningRecommendations = window.UpeakDayRecommendations.getRecommendations(state.dayState);
+    state.morningEmbedDecisions = {};
+    state.morningEmbedDate = today;
+    state.morningRecommendations = buildMorningRecommendations();
     activateDailyRoutine();
     promoteScheduledForToday();
     saveState();
@@ -279,12 +364,7 @@
       total: state.tasks.length
     };
 
-    state.eveningReview = getEveningReview(
-      state.evening,
-      state.readiness == null ? 0 : state.readiness,
-      state.evening.completed,
-      state.evening.total
-    );
+    state.eveningReview = buildEveningReview();
 
     state.dayClosedAt = new Date().toISOString();
     saveState();
@@ -342,6 +422,15 @@
     var sorted = regular.slice().sort(comparePriority);
 
     sorted.forEach(function (task) {
+      if (task.recommendationId && String(task.recommendationId).indexOf("morning:") === 0) {
+        if (!task.slotKey || task.slotKey === SLOT_KEYS.none) {
+          task.slotKey = SLOT_KEYS.eveningLight;
+        }
+        remaining -= getTaskLoad(task);
+        kept.push(task);
+        return;
+      }
+
       var load = getTaskLoad(task);
       var isUrgent = Number(task.urgency) >= 4;
       var tooHeavy = (readiness < 45 && Number(task.difficulty) >= 4) || Number(task.duration) >= 180;
@@ -453,6 +542,73 @@
     }
   }
 
+  function isMorningRecommendationTask(task) {
+    return !!(task && task.recommendationId && String(task.recommendationId).indexOf("morning:") === 0);
+  }
+
+  function isPinnedRecommendationTask(task) {
+    return isMorningRecommendationTask(task);
+  }
+
+  function compareRecommendationTasks(a, b) {
+    var aMorning = a.slotKey === SLOT_KEYS.morningFocus || a.slotKey === SLOT_KEYS.morningRoutine;
+    var bMorning = b.slotKey === SLOT_KEYS.morningFocus || b.slotKey === SLOT_KEYS.morningRoutine;
+    if (aMorning !== bMorning) return aMorning ? -1 : 1;
+    return Number(a.order || 0) - Number(b.order || 0);
+  }
+
+  function resolveRecommendationSlotKey(taskDef) {
+    var raw = taskDef && taskDef.slotKey ? String(taskDef.slotKey) : "eveningLight";
+    if (raw === SLOT_KEYS.morningFocus || raw === "morningFocus") return SLOT_KEYS.morningFocus;
+    if (raw === SLOT_KEYS.morningRoutine || raw === "morningRoutine") return SLOT_KEYS.morningRoutine;
+    if (raw === SLOT_KEYS.dayOps || raw === "dayOps") return SLOT_KEYS.dayOps;
+    if (raw === SLOT_KEYS.eveningLight || raw === "eveningLight") return SLOT_KEYS.eveningLight;
+    return SLOT_KEYS.eveningLight;
+  }
+
+  function renderTaskRow(task, index, isRecommendation) {
+    var slotLabel = t(task.slotKey || SLOT_KEYS.none);
+    var title = escapeHtml(task.title || "");
+    var slot = escapeHtml(slotLabel || "");
+    var routineChip = isRoutineTask(task)
+      ? '<span class="routine-chip">' + escapeHtml(t("planner.tasks.routineChip")) + "</span>"
+      : "";
+    var rowClass = "task-row" + (isRecommendation ? " task-row-recommendation" : "");
+
+    return [
+      '<tr class="' + rowClass + '" data-task-id="' + escapeAttr(task.id) + '">',
+        '<td class="order-cell">',
+          '<span class="drag-handle" title="' + escapeAttr(t("planner.tasks.dragHandle")) + '">⋮⋮</span>',
+          '<span class="order-index">' + index + "</span>",
+        "</td>",
+        '<td><input type="checkbox" class="task-toggle" data-task-id="' + escapeAttr(task.id) + '"' + (task.done ? " checked" : "") + "></td>",
+        "<td>",
+          '<span class="task-title' + (task.done ? " task-done" : "") + '">',
+            title,
+            routineChip,
+          "</span>",
+        "</td>",
+        "<td>" + Number(task.difficulty || 0) + "</td>",
+        "<td>" + Number(task.urgency || 0) + "</td>",
+        "<td>" + Number(task.duration || 0) + "</td>",
+        '<td><span class="slot-chip">' + slot + "</span></td>",
+        '<td class="actions-cell">',
+          '<div class="table-actions">',
+            '<button type="button" class="table-action edit" data-action="edit" data-task-id="' + escapeAttr(task.id) + '">',
+              escapeHtml(t("planner.tasks.edit")),
+            "</button>",
+            '<button type="button" class="table-action danger" data-action="delete" data-task-id="' + escapeAttr(task.id) + '">',
+              escapeHtml(t("planner.tasks.delete")),
+            "</button>",
+            '<button type="button" class="table-action ghost" data-action="postpone" data-task-id="' + escapeAttr(task.id) + '">',
+              escapeHtml(t("planner.tasks.postpone")),
+            "</button>",
+          "</div>",
+        "</td>",
+      "</tr>"
+    ].join("");
+  }
+
   function renderTasks() {
     if (!state.tasks.length) {
       el.taskTableBody.innerHTML =
@@ -461,48 +617,28 @@
     }
 
     var sortedTasks = state.tasks.slice().sort(compareTasksForDisplay);
+    var recommendationTasks = sortedTasks.filter(isPinnedRecommendationTask).sort(compareRecommendationTasks);
+    var mainTasks = sortedTasks.filter(function (task) {
+      return !isPinnedRecommendationTask(task);
+    });
+    var htmlParts = [];
+    var rowIndex = 0;
 
-    el.taskTableBody.innerHTML = sortedTasks.map(function (task, index) {
-      var slotLabel = t(task.slotKey || SLOT_KEYS.none);
-      var title = escapeHtml(task.title || "");
-      var slot = escapeHtml(slotLabel || "");
-      var routineChip = isRoutineTask(task)
-        ? '<span class="routine-chip">' + escapeHtml(t("planner.tasks.routineChip")) + "</span>"
-        : "";
+    recommendationTasks.forEach(function (task) {
+      rowIndex += 1;
+      htmlParts.push(renderTaskRow(task, rowIndex, true));
+    });
 
-      return [
-        '<tr class="task-row" data-task-id="' + escapeAttr(task.id) + '">',
-          '<td class="order-cell">',
-            '<span class="drag-handle" title="' + escapeAttr(t("planner.tasks.dragHandle")) + '">⋮⋮</span>',
-            '<span class="order-index">' + (index + 1) + "</span>",
-          "</td>",
-          '<td><input type="checkbox" class="task-toggle" data-task-id="' + escapeAttr(task.id) + '"' + (task.done ? " checked" : "") + "></td>",
-          "<td>",
-            '<span class="task-title' + (task.done ? " task-done" : "") + '">',
-              title,
-              routineChip,
-            "</span>",
-          "</td>",
-          "<td>" + Number(task.difficulty || 0) + "</td>",
-          "<td>" + Number(task.urgency || 0) + "</td>",
-          "<td>" + Number(task.duration || 0) + "</td>",
-          '<td><span class="slot-chip">' + slot + "</span></td>",
-          '<td class="actions-cell">',
-            '<div class="table-actions">',
-              '<button type="button" class="table-action edit" data-action="edit" data-task-id="' + escapeAttr(task.id) + '">',
-                escapeHtml(t("planner.tasks.edit")),
-              "</button>",
-              '<button type="button" class="table-action danger" data-action="delete" data-task-id="' + escapeAttr(task.id) + '">',
-                escapeHtml(t("planner.tasks.delete")),
-              "</button>",
-              '<button type="button" class="table-action ghost" data-action="postpone" data-task-id="' + escapeAttr(task.id) + '">',
-                escapeHtml(t("planner.tasks.postpone")),
-              "</button>",
-            "</div>",
-          "</td>",
-        "</tr>"
-      ].join("");
-    }).join("");
+    if (recommendationTasks.length && mainTasks.length) {
+      htmlParts.push('<tr class="task-group-spacer" aria-hidden="true"><td colspan="8"></td></tr>');
+    }
+
+    mainTasks.forEach(function (task) {
+      rowIndex += 1;
+      htmlParts.push(renderTaskRow(task, rowIndex, false));
+    });
+
+    el.taskTableBody.innerHTML = htmlParts.join("");
 
     bindTaskRowActions();
     bindTaskDragAndDrop();
@@ -887,78 +1023,21 @@
       : String(state.readiness);
   }
 
-  function getCompletionBand(rate) {
-    if (rate >= 70) return "high";
-    if (rate >= 60) return "medium";
-    return "low";
+  function buildEveningReview() {
+    if (!state.evening || !window.UpeakEveningRecommendations) return null;
+    var recs = window.UpeakEveningRecommendations.getRecommendations({
+      morningScore: state.readiness == null ? 0 : state.readiness,
+      completedTasks: state.evening.completed,
+      totalTasks: state.evening.total,
+      evening: state.evening
+    });
+    return recs.length ? recs[0] : null;
   }
 
-  function getMorningStateBand(morningScore) {
-    if (morningScore < 40) return "low";
-    if (morningScore < 70) return "medium";
-    return "high";
-  }
-
-  function getEveningReview(eveningData, morningScore, completedTasks, totalTasks) {
-    var completionRate = totalTasks > 0
-      ? Math.round((completedTasks / totalTasks) * 100)
-      : 0;
-
-    var stateBand = getMorningStateBand(morningScore);
-    var completionBand = getCompletionBand(completionRate);
-    var summary = { completionRate: completionRate };
-
-    if (stateBand === "high" && completionBand === "high") {
-      summary.title = "Отличный день 💪";
-      summary.text = "С утра было хорошее состояние, и большинство задач закрыто.";
-      summary.rec = "Сохрани ритм: ляг в привычное время, без лишних дел перед сном.";
-    } else if (stateBand === "high" && completionBand === "low") {
-      summary.title = "Хорошее утро, но не всё успели";
-      summary.text = "Состояние с утра было сильным, но часть задач осталась открытой.";
-      summary.rec = "Завтра заложи меньше задач или разбей крупные на более короткие шаги.";
-    } else if (stateBand === "high" && completionBand === "medium") {
-      summary.title = "Неплохой день";
-      summary.text = "С утра было хорошее состояние, закрыта примерно половина плана и больше.";
-      summary.rec = "Посмотри, какие задачи «застряли» — возможно, их стоит упростить или перенести.";
-    } else if (stateBand === "low" && completionBand === "low") {
-      summary.title = "Тяжёлый день — это нормально";
-      summary.text = "С утра сил было мало, и часть задач не закрылась. Это сигнал, а не провал.";
-      summary.rec = "Сегодня важнее отдых: ляг на 30 минут раньше и сократи вечерние дела.";
-    } else if (stateBand === "low" && completionBand === "high") {
-      summary.title = "Справился на износ 👊";
-      summary.text = "С утра сил было мало, но ты закрыл большинство задач.";
-      summary.rec = "Так часто нельзя — сегодня точно отдохни, без «доделать ещё чуть-чуть».";
-    } else if (stateBand === "low" && completionBand === "medium") {
-      summary.title = "День на пределе";
-      summary.text = "С утра сил было мало, закрыта только часть задач.";
-      summary.rec = "Не добирай силы за счёт сна — сегодня лучше меньше нагрузки, больше восстановления.";
-    } else if (stateBand === "medium" && completionBand === "high") {
-      summary.title = "Ровный продуктивный день";
-      summary.text = "Состояние было средним, но большинство задач выполнено.";
-      summary.rec = "Хороший баланс. Следи, чтобы не добавлять завтра лишнего «на всякий случай».";
-    } else if (stateBand === "medium" && completionBand === "low") {
-      summary.title = "День не задался";
-      summary.text = "Состояние было средним, но закрыто мало задач.";
-      summary.rec = "Возможно, план был слишком плотным или задачи оказались сложнее. Завтра оставь меньше пунктов.";
-    } else {
-      summary.title = "Средний день";
-      summary.text = "Состояние было средним, часть задач закрыта, часть — нет.";
-      summary.rec = "Отметь, что мешало: усталость, отвлечения или неясные задачи — это поможет спланировать завтра.";
+  function refreshEveningReview() {
+    if (state.evening && state.evening.date === today) {
+      state.eveningReview = buildEveningReview();
     }
-
-    if (eveningData) {
-      if (Number(eveningData.fatigue) >= 4) {
-        summary.rec += " Высокая усталость к вечеру — сократи нагрузку и включи отключение от работы (detachment): 15–20 минут без экрана и рабочих мыслей.";
-      }
-      if (Number(eveningData.procrastination) >= 4 || Number(eveningData.taskStart) >= 4) {
-        summary.rec += " Сложно было начинать — завтра поставь одну самую маленькую задачу первой.";
-      }
-      if (Number(eveningData.detachment) <= 2) {
-        summary.rec += " Вечером не удалось отключиться от работы — попробуй 15 минут без экрана перед сном.";
-      }
-    }
-
-    return summary;
   }
 
   function renderWhyHtml(why) {
@@ -968,6 +1047,9 @@
     }
     var html = '<div class="intervention-why-inner">';
     html += '<p class="intervention-why-text">' + escapeHtml(why.text) + "</p>";
+    if (why.evidence_level) {
+      html += '<p class="intervention-why-meta">Доказательность: ' + escapeHtml(why.evidence_level) + "</p>";
+    }
     if (why.source) {
       html += '<p class="intervention-why-source">';
       if (why.url) {
@@ -978,17 +1060,218 @@
       }
       html += "</p>";
     }
+    if (Array.isArray(why.limitations) && why.limitations.length) {
+      html += '<ul class="intervention-why-list">';
+      why.limitations.forEach(function (item) {
+        html += "<li>" + escapeHtml(item) + "</li>";
+      });
+      html += "</ul>";
+    }
     html += "</div>";
     return html;
   }
 
+  function renderEveningRecommendationCard(rec, idx) {
+    var html = '<article class="intervention-card intervention-summary">';
+    html += '<h3 class="intervention-title">' + escapeHtml(rec.title || "Итог дня") + "</h3>";
+    html += '<p class="intervention-meta">Выполнено: ' + escapeHtml(rec.completionRate) + "%</p>";
+    html += '<p class="intervention-text">' + escapeHtml(rec.summary || "") + "</p>";
+
+    if (rec.hint) {
+      html += '<p class="intervention-meta">' + escapeHtml(rec.hint) + "</p>";
+    }
+
+    if (Array.isArray(rec.actions) && rec.actions.length) {
+      html += '<p class="intervention-rec"><strong>' + escapeHtml(rec.planLabel || "Завтра стоит") + ":</strong></p>";
+      html += '<ul class="intervention-list">';
+      rec.actions.forEach(function (item) {
+        html += "<li>" + escapeHtml(item) + "</li>";
+      });
+      html += "</ul>";
+    }
+
+    if (rec.show_why && rec.why && rec.why.text) {
+      html += '<button type="button" class="intervention-why-btn" data-why-target="eveningWhy' + idx +
+        '" aria-expanded="false">Почему?</button>';
+      html += '<div class="intervention-why hidden" id="eveningWhy' + idx + '">' +
+        renderWhyHtml(rec.why) + "</div>";
+    }
+
+    html += "</article>";
+    return html;
+  }
+
+  function getMorningEmbedContext() {
+    var decisions = {};
+    if (hasMorningCheckinToday() && state.morningEmbedDecisions) {
+      decisions = state.morningEmbedDecisions;
+    }
+    var existingIds = [];
+    if (Array.isArray(state.tasks)) {
+      state.tasks.forEach(function (task) {
+        if (task && task.recommendationId) existingIds.push(task.recommendationId);
+      });
+    }
+    return { decisions: decisions, existingIds: existingIds };
+  }
+
+  function buildMorningRecommendations() {
+    if (!state.dayState || !window.UpeakDayRecommendations) return [];
+    return window.UpeakDayRecommendations.getRecommendations(state.dayState, getMorningEmbedContext());
+  }
+
+  function findMorningEmbedOffer(embedId) {
+    if (!window.UpeakDayRecommendations || typeof window.UpeakDayRecommendations.getMorningEmbeddable !== "function") {
+      return null;
+    }
+    var def = window.UpeakDayRecommendations.getMorningEmbeddable(embedId);
+    if (!def || !def.task) return null;
+    return {
+      id: def.id,
+      task: Object.assign({}, def.task)
+    };
+  }
+
+  function ensureMorningEmbedState() {
+    if (!state.morningEmbedDecisions || typeof state.morningEmbedDecisions !== "object") {
+      state.morningEmbedDecisions = {};
+    }
+    if (!state.morningEmbedDate) state.morningEmbedDate = today;
+  }
+
+  function addMorningEmbedToPlan(embedId) {
+    var offer = findMorningEmbedOffer(embedId);
+    if (!offer || !offer.task) return;
+
+    ensureMorningEmbedState();
+    var recId = "morning:" + embedId;
+    if (state.morningEmbedDecisions[embedId] === "added" ||
+        state.morningEmbedDecisions[embedId] === "later") {
+      return;
+    }
+    if (state.tasks.some(function (task) { return task.recommendationId === recId; })) {
+      state.morningEmbedDecisions[embedId] = "added";
+      state.morningEmbedDate = today;
+      saveState();
+      state.morningRecommendations = buildMorningRecommendations();
+      renderMorningRecommendations();
+      return;
+    }
+
+    var taskDef = offer.task;
+    var slotKey = resolveRecommendationSlotKey(taskDef);
+    state.tasks.push({
+      id: makeId(),
+      title: taskDef.title,
+      duration: Number(taskDef.duration) || 15,
+      difficulty: Number(taskDef.difficulty) || 5,
+      urgency: Number(taskDef.urgency) || 5,
+      routine: false,
+      done: false,
+      order: -1,
+      slotKey: slotKey,
+      recommendationId: recId
+    });
+
+    distributeTasks();
+
+    state.morningEmbedDecisions[embedId] = "added";
+    state.morningEmbedDate = today;
+    saveState();
+    renderTasks();
+    state.morningRecommendations = buildMorningRecommendations();
+    renderMorningRecommendations();
+    updateFact();
+
+    var tasksSection = el.taskTableBody && el.taskTableBody.closest("section");
+    if (tasksSection) {
+      tasksSection.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("morning_embed_added", { embedId: embedId, title: taskDef.title });
+    }
+  }
+
+  function deferMorningEmbed(embedId) {
+    ensureMorningEmbedState();
+    state.morningEmbedDecisions[embedId] = "later";
+    state.morningEmbedDate = today;
+    saveState();
+    state.morningRecommendations = buildMorningRecommendations();
+    renderMorningRecommendations();
+  }
+
+  function renderMorningEmbedOffer(offer) {
+    if (!offer || offer.status !== "pending") return "";
+
+    var html = '<div class="intervention-embed" data-embed-id="' + escapeAttr(offer.id) + '">';
+    html += '<p class="intervention-embed-text">' + escapeHtml(offer.prompt) + "</p>";
+    if (offer.detail) {
+      html += '<p class="intervention-meta">' + escapeHtml(offer.detail) + "</p>";
+    }
+    html += '<div class="intervention-embed-actions">';
+    html += '<button type="button" class="btn intervention-embed-btn" data-morning-embed-add="' +
+      escapeAttr(offer.id) + '">' + escapeHtml(t("planner.morning.embedAdd")) + "</button>";
+    html += '<button type="button" class="btn secondary intervention-embed-btn" data-morning-embed-later="' +
+      escapeAttr(offer.id) + '">' + escapeHtml(t("planner.morning.embedLater")) + "</button>";
+    html += "</div>";
+    html += "</div>";
+    return html;
+  }
+
+  function bindMorningEmbedActions(container) {
+    container.querySelectorAll("[data-morning-embed-add]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var embedId = btn.getAttribute("data-morning-embed-add");
+        if (embedId) addMorningEmbedToPlan(embedId);
+      });
+    });
+    container.querySelectorAll("[data-morning-embed-later]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var embedId = btn.getAttribute("data-morning-embed-later");
+        if (embedId) deferMorningEmbed(embedId);
+      });
+    });
+  }
+
+  function renderRecommendationCard(rec, idx) {
+    var html = '<article class="intervention-card">';
+    html += '<p class="intervention-text">' + escapeHtml(rec.summary || rec.today || rec.text || "") + "</p>";
+
+    if (rec.hint) {
+      html += '<p class="intervention-meta">' + escapeHtml(rec.hint) + "</p>";
+    }
+
+    if (Array.isArray(rec.actions) && rec.actions.length) {
+      html += '<p class="intervention-rec"><strong>Сегодня стоит:</strong></p>';
+      html += '<ul class="intervention-list">';
+      rec.actions.forEach(function (item) {
+        html += "<li>" + escapeHtml(item) + "</li>";
+      });
+      html += "</ul>";
+    }
+
+    if (rec.show_why && rec.why && rec.why.text) {
+      html += '<button type="button" class="intervention-why-btn" data-why-target="morningWhy' + idx +
+        '" aria-expanded="false">Почему?</button>';
+      html += '<div class="intervention-why hidden" id="morningWhy' + idx + '">' +
+        renderWhyHtml(rec.why) + "</div>";
+    }
+
+    if (rec.evidence_level) {
+      html += '<p class="intervention-evidence-badge">' +
+        escapeHtml(rec.evidence_level) + " доказательность</p>";
+    }
+
+    html += "</article>";
+    return html;
+  }
+
   function refreshInterventionBlocks() {
-    if (state.morning && state.morning.date === today && state.readiness != null) {
-      if (!Array.isArray(state.morningRecommendations) || !state.morningRecommendations.length) {
-        if (!state.dayState && state.morning) {
-          state.dayState = window.UpeakDayState.computeDayStateFromMorning(state.morning);
-        }
-        state.morningRecommendations = window.UpeakDayRecommendations.getRecommendations(state.dayState);
+    if (hasMorningCheckinToday()) {
+      if (state.dayState && window.UpeakDayRecommendations) {
+        state.morningRecommendations = buildMorningRecommendations();
       }
       renderMorningRecommendations();
     } else {
@@ -996,14 +1279,7 @@
     }
 
     if (state.evening && state.evening.date === today) {
-      if (!state.eveningReview) {
-        state.eveningReview = getEveningReview(
-          state.evening,
-          state.readiness == null ? 0 : state.readiness,
-          state.evening.completed,
-          state.evening.total
-        );
-      }
+      refreshEveningReview();
       renderEveningReview();
     } else {
       renderEveningReview();
@@ -1014,9 +1290,13 @@
     var container = el.morningRecommendations;
     if (!container) return;
 
+    if (hasMorningCheckinToday() && state.dayState && window.UpeakDayRecommendations) {
+      state.morningRecommendations = buildMorningRecommendations();
+    }
+
     var recs = state.morningRecommendations;
-    var show = Array.isArray(recs) && recs.length > 0 &&
-      state.morning && state.morning.date === today;
+    var show = hasMorningCheckinToday() &&
+      Array.isArray(recs) && recs.length > 0;
 
     if (!show) {
       container.classList.add("hidden");
@@ -1028,19 +1308,22 @@
     var stateLine = state.dayState
       ? ' <span class="intervention-meta">' + escapeHtml(getDayStateLabel(state.dayState)) + "</span>"
       : "";
+    var embedHtml = "";
+    if (recs[0] && Array.isArray(recs[0].embedOffers) && recs[0].embedOffers.length) {
+      embedHtml = recs[0].embedOffers.map(function (offer) {
+        return renderMorningEmbedOffer(offer);
+      }).join("");
+    }
+
     container.innerHTML =
       '<h3 class="intervention-title">Рекомендации на сегодня' + stateLine + "</h3>" +
       recs.map(function (rec, idx) {
-        return (
-          '<article class="intervention-card">' +
-            '<p class="intervention-text">' + escapeHtml(rec.text) + "</p>" +
-            '<button type="button" class="intervention-why-btn" data-why-target="morningWhy' + idx + '" aria-expanded="false">Почему?</button>' +
-            '<div class="intervention-why hidden" id="morningWhy' + idx + '">' + renderWhyHtml(rec.why) + "</div>" +
-          "</article>"
-        );
-      }).join("");
+        return renderRecommendationCard(rec, idx);
+      }).join("") +
+      embedHtml;
 
     bindWhyToggles(container);
+    bindMorningEmbedActions(container);
   }
 
   function renderEveningReview() {
@@ -1057,13 +1340,8 @@
     }
 
     container.classList.remove("hidden");
-    container.innerHTML =
-      '<article class="intervention-card intervention-summary">' +
-        '<h3 class="intervention-title">' + escapeHtml(review.title) + "</h3>" +
-        '<p class="intervention-meta">Выполнено: ' + review.completionRate + "%</p>" +
-        '<p class="intervention-text">' + escapeHtml(review.text) + "</p>" +
-        '<p class="intervention-rec"><strong>Рекомендация:</strong> ' + escapeHtml(review.rec) + "</p>" +
-      "</article>";
+    container.innerHTML = renderEveningRecommendationCard(review, 0);
+    bindWhyToggles(container);
   }
 
   function bindWhyToggles(container) {
@@ -1277,6 +1555,11 @@
       return Number(a.order || 0) - Number(b.order || 0);
     }
 
+    var aPinned = isPinnedRecommendationTask(a);
+    var bPinned = isPinnedRecommendationTask(b);
+    if (aPinned !== bPinned) return aPinned ? -1 : 1;
+    if (aPinned && bPinned) return compareRecommendationTasks(a, b);
+
     var orderMap = {};
     orderMap[SLOT_KEYS.morningRoutine] = 0;
     orderMap[SLOT_KEYS.morningFocus] = 1;
@@ -1377,12 +1660,14 @@
       participantId: "",
       morning: null,
       evening: null,
-      readiness: 50,
+      readiness: null,
       tasks: [],
       scheduled: [],
       dayClosedAt: "",
       manualOrder: false,
-      lastRoutineResetDate: ""
+      lastRoutineResetDate: "",
+      morningEmbedDecisions: {},
+      morningEmbedDate: ""
     };
 
     try {

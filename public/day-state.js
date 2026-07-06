@@ -93,15 +93,34 @@ function buildModifiers(metrics) {
 }
 
 function buildIssues(entries, values) {
+  var max = Math.max.apply(null, values);
   var lowEntries = entries.filter(function (e) {
     return e.value <= THRESHOLD_LOW;
   });
-  var ordered = METRIC_PRIORITY.filter(function (name) {
-    return lowEntries.some(function (e) { return e.name === name; });
+
+  if (!lowEntries.length) {
+    return {
+      primary_issue: pickLowestMetric(entries),
+      secondary_issue: null
+    };
+  }
+
+  var ranked = lowEntries.map(function (e) {
+    return {
+      name: e.name,
+      value: e.value,
+      gap: max - e.value
+    };
   });
+
+  ranked.sort(function (a, b) {
+    if (b.gap !== a.gap) return b.gap - a.gap;
+    return METRIC_PRIORITY.indexOf(a.name) - METRIC_PRIORITY.indexOf(b.name);
+  });
+
   return {
-    primary_issue: ordered[0] || pickLowestMetric(entries),
-    secondary_issue: ordered[1] || null
+    primary_issue: ranked[0].name,
+    secondary_issue: ranked[1] ? ranked[1].name : null
   };
 }
 
@@ -162,6 +181,7 @@ function evaluateDayState(metrics) {
     secondary_issue = issues.secondary_issue;
   } else if (spread >= SPREAD_MIXED_MIN && low_count === COUNT_LOW_MIXED) {
     state = "mixed";
+    // mixed_severe: хотя бы одна метрика критично низкая (<=2), не bad_count==3
     if (min <= THRESHOLD_LOW) sub_state = "mixed_severe";
     issues = buildIssues(entries, values);
     primary_issue = issues.primary_issue;
@@ -213,28 +233,4 @@ function computeDayStateFromMorning(morning) {
   return computeDayState(morningCheckinToDayStateInput(morning));
 }
 
-var UpeakDayState = {
-  THRESHOLD_LOW: THRESHOLD_LOW,
-  THRESHOLD_HIGH: THRESHOLD_HIGH,
-  PLATEAU_VALUE: PLATEAU_VALUE,
-  MEAN_EMERGENCY_MAX: MEAN_EMERGENCY_MAX,
-  MEAN_RECOVERY_MAX: MEAN_RECOVERY_MAX,
-  PLATEAU_MEAN_MIN: PLATEAU_MEAN_MIN,
-  PLATEAU_MEAN_MAX: PLATEAU_MEAN_MAX,
-  MEAN_HIGH_PERF_MIN: MEAN_HIGH_PERF_MIN,
-  SPREAD_PLATEAU_MAX: SPREAD_PLATEAU_MAX,
-  SPREAD_MIXED_MIN: SPREAD_MIXED_MIN,
-  COUNT_LOW_EMERGENCY: COUNT_LOW_EMERGENCY,
-  METRIC_NAMES: METRIC_NAMES,
-  METRIC_PRIORITY: METRIC_PRIORITY,
-  sleepHoursToScale: sleepHoursToScale,
-  morningCheckinToDayStateInput: morningCheckinToDayStateInput,
-  metricsFromRawInput: metricsFromRawInput,
-  evaluateDayState: evaluateDayState,
-  computeDayState: computeDayState,
-  computeDayStateFromMetrics: computeDayStateFromMetrics,
-  computeDayStateFromMorning: computeDayStateFromMorning
-};
-
-if (typeof window !== "undefined") window.UpeakDayState = UpeakDayState;
-if (typeof module !== "undefined" && module.exports) module.exports = UpeakDayState;
+var UpeakDayState={THRESHOLD_LOW:THRESHOLD_LOW,THRESHOLD_HIGH:THRESHOLD_HIGH,PLATEAU_VALUE:PLATEAU_VALUE,MEAN_EMERGENCY_MAX:MEAN_EMERGENCY_MAX,MEAN_RECOVERY_MAX:MEAN_RECOVERY_MAX,PLATEAU_MEAN_MIN:PLATEAU_MEAN_MIN,PLATEAU_MEAN_MAX:PLATEAU_MEAN_MAX,MEAN_HIGH_PERF_MIN:MEAN_HIGH_PERF_MIN,SPREAD_PLATEAU_MAX:SPREAD_PLATEAU_MAX,SPREAD_MIXED_MIN:SPREAD_MIXED_MIN,COUNT_LOW_EMERGENCY:COUNT_LOW_EMERGENCY,METRIC_NAMES:METRIC_NAMES,METRIC_PRIORITY:METRIC_PRIORITY,sleepHoursToScale:sleepHoursToScale,morningCheckinToDayStateInput:morningCheckinToDayStateInput,metricsFromRawInput:metricsFromRawInput,evaluateDayState:evaluateDayState,computeDayState:computeDayState,computeDayStateFromMetrics:computeDayStateFromMetrics,computeDayStateFromMorning:computeDayStateFromMorning};if(typeof window!=="undefined")window.UpeakDayState=UpeakDayState;if(typeof module!=="undefined"&&module.exports)module.exports=UpeakDayState;
