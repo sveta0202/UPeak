@@ -1,13 +1,17 @@
 (function (root) {
   "use strict";
 
-  var PLAN_LABEL = "Сегодня стоит";
+  var PLAN_LABEL = "Рекомендуем";
 
   var SECTION_LABELS = {
+    diagnosis: "Диагноз",
+    impact: "Что это значит",
+    plan: PLAN_LABEL,
+    benefit: "Почему это важно",
+    specifics: "Попробуй сегодня",
     today: "Что сегодня",
     meaning: "Что это значит",
     consequence: "Если не скорректировать",
-    plan: PLAN_LABEL,
     reduce: "Уменьшить",
     leverage: "Использовать",
     why: "Почему",
@@ -46,6 +50,13 @@
   };
 
   var RECOMMENDATION_MATRIX = null;
+  var DECISION_MATRIX = null;
+
+  var EVIDENCE_LEVEL_LABELS = {
+    High: "Высокая",
+    Medium: "Средняя",
+    Low: "Низкая"
+  };
 
   var STATE_OVERRIDES = {
     emergency_recovery: {
@@ -61,6 +72,12 @@
         leverage: []
       },
       why: "Когда несколько ресурсов истощены, падают самоконтроль и качество решений — восстановление важнее продуктивности.",
+      benefit: "Так ты сохранишь ресурс и повысишь вероятность сильного рабочего дня завтра вместо накопления усталости.",
+      specifics: [
+        "оставить в плане только 1 важную задачу",
+        "перенести одну тяжёлую задачу на завтра",
+        "лечь спать на 30–40 минут раньше"
+      ],
       evidence_level: "Высокая",
       sources: [
         {
@@ -84,6 +101,12 @@
         leverage: []
       },
       why: "Когда один ресурс сильно просел, короткий список снижает нагрузку на внимание.",
+      benefit: "Так ты не потратишь остаток ресурса на борьбу с перегрузом — и завтра будет проще вернуться в ритм.",
+      specifics: [
+        "сократить список до 1–2 задач",
+        "сделать короткую паузу между блоками",
+        "не брать новые дела «на вечер»"
+      ],
       evidence_level: "Высокая",
       sources: [
         {
@@ -105,6 +128,8 @@
 
   var METRIC_PRIORITY = ["sleep_hours", "sleep_quality", "energy", "stress"];
   var AXIS_PRIORITY = ["sleep", "energy", "stress"];
+  var GROWTH_AXIS_ORDER = ["sleep", "stress", "energy"];
+  var PLATEAU_AND_ABOVE = ["plateau", "normal", "normal_borderline", "high_performance"];
   var DEFAULT_FOCUS_METRIC = "energy";
 
   function setRecommendationMatrix(data) {
@@ -113,6 +138,141 @@
       PLAN_LABEL = RECOMMENDATION_MATRIX.meta.plan_label;
       SECTION_LABELS.plan = PLAN_LABEL;
     }
+  }
+
+  function setDecisionMatrix(data) {
+    DECISION_MATRIX = data && data.decisions ? data : null;
+  }
+
+  function resolveDecisionKey(dayState) {
+    if (!dayState) return null;
+    if (dayState.sub_state === "mixed_severe") return "emergency_recovery";
+    if (dayState.state === "emergency_recovery" || dayState.state === "recovery") return "emergency_recovery";
+    if (dayState.state === "mixed") return "emergency_recovery";
+    if (dayState.state === "plateau" || dayState.state === "normal") return "plateau";
+    if (dayState.state === "single_issue") return "single_issue";
+    if (dayState.state === "high_performance") {
+      var m = dayState.metrics;
+      if (m && m.sleep_hours >= 5 && m.sleep_quality >= 5 && m.energy >= 5 && m.stress >= 5) {
+        return "high";
+      }
+      return "growth";
+    }
+    return "plateau";
+  }
+
+  function shallowCopyDecision(entry) {
+    var copy = Object.assign({}, entry);
+    if (Array.isArray(entry.today_action)) copy.today_action = entry.today_action.slice();
+    if (Array.isArray(entry.avoid)) copy.avoid = entry.avoid.slice();
+    if (entry.evidence) {
+      copy.evidence = Object.assign({}, entry.evidence);
+      if (Array.isArray(entry.evidence.sources)) {
+        copy.evidence.sources = entry.evidence.sources.slice();
+      }
+    }
+    return copy;
+  }
+
+  function formatSourceLabel(src) {
+    if (!src) return null;
+    return src.title +
+      (src.authors ? " — " + src.authors : "") +
+      (src.year ? " (" + src.year + ")" : "");
+  }
+
+  function personalizeGrowthEntry(base, dayState) {
+    var entry = shallowCopyDecision(base);
+    var axis = pickGrowthAxis(dayState);
+    if (axis && base.by_axis && base.by_axis[axis]) {
+      var axisBlock = base.by_axis[axis];
+      if (axisBlock.state_text) entry.state_text = axisBlock.state_text;
+      if (axisBlock.focus_action) {
+        entry.today_action = uniqueList([axisBlock.focus_action].concat(base.today_action || []), 2);
+      }
+    }
+    return entry;
+  }
+
+  function personalizeSingleIssueEntry(base, dayState) {
+    var entry = shallowCopyDecision(base);
+    var issue = dayState.primary_issue;
+    if (issue && base.by_issue && base.by_issue[issue]) {
+      var issueBlock = base.by_issue[issue];
+      entry = Object.assign({}, entry, issueBlock);
+      if (!issueBlock.today_action) entry.today_action = base.today_action.slice();
+      if (!issueBlock.avoid) entry.avoid = base.avoid.slice();
+    }
+    return entry;
+  }
+
+  function getDecisionEntry(dayState, decisionKey) {
+    if (!DECISION_MATRIX || !DECISION_MATRIX.decisions) return null;
+    decisionKey = decisionKey || resolveDecisionKey(dayState);
+    var base = DECISION_MATRIX.decisions[decisionKey];
+    if (!base) return null;
+    if (decisionKey === "growth") return personalizeGrowthEntry(base, dayState);
+    if (decisionKey === "single_issue") return personalizeSingleIssueEntry(base, dayState);
+    return shallowCopyDecision(base);
+  }
+
+  function buildProofFromEvidence(entry) {
+    if (!entry || !entry.evidence) return null;
+    var ev = entry.evidence;
+    if (!ev.basis && !ev.level && !(Array.isArray(ev.sources) && ev.sources.length)) return null;
+    var sources = Array.isArray(ev.sources) ? ev.sources.slice() : [];
+    var primary = sources.length ? sources[0] : null;
+    return {
+      text: ev.basis || "",
+      evidence_level: EVIDENCE_LEVEL_LABELS[ev.level] || ev.level || null,
+      limitations: [RESULT_DISCLAIMER],
+      sources: sources,
+      source: formatSourceLabel(primary),
+      url: primary && primary.url ? primary.url : null
+    };
+  }
+
+  function cardToneFromDecisionKey(key) {
+    if (key === "high" || key === "growth") return "growth";
+    if (key === "emergency_recovery") return "recovery";
+    return "steady";
+  }
+
+  function composeCardFromDecision(dayState, map, entry, decisionKey) {
+    var actions = uniqueList(entry.today_action || [], 2);
+    if (!actions.length) return null;
+
+    var avoid = uniqueList(entry.avoid || [], 2);
+    var stateText = entry.state_text || entry.state || "";
+    var proof = buildProofFromEvidence(entry);
+    var hasProof = !!(proof && (proof.text || (proof.sources && proof.sources.length)));
+
+    return {
+      tone: cardToneFromDecisionKey(decisionKey),
+      state: stateText,
+      state_title: entry.state || "",
+      decision: entry.decision || "",
+      actions: actions,
+      avoid: avoid,
+      move_to_max: entry.move_to_max || null,
+      benefit: entry.why || "",
+      result: entry.expected_gain || "",
+      result_condition: RESULT_CONDITION,
+      result_disclaimer: RESULT_DISCLAIMER,
+      proof: proof,
+      show_proof: hasProof,
+      why: proof,
+      show_why: hasProof,
+      plan_label: "Сегодня",
+      diagnosis: stateText,
+      summary: stateText,
+      today: stateText,
+      text: stateText,
+      state_label: entry.state || getStateLabel(dayState),
+      focus_axis: map.focus_axis,
+      mode: decisionKey,
+      decision_key: decisionKey
+    };
   }
 
   function metricToAxis(name) {
@@ -199,6 +359,10 @@
         : null,
       url: src && src.url ? src.url : null
     };
+  }
+
+  function whyEntryEvidenceLevel(entry) {
+    return entry && entry.evidence_level ? entry.evidence_level : null;
   }
 
   function pickLowestMetric(metrics) {
@@ -344,6 +508,177 @@
     return uniqueList(items, max || 3);
   }
 
+  function isPlateauOrAbove(state) {
+    return PLATEAU_AND_ABOVE.indexOf(state) !== -1;
+  }
+
+  function growthAxisOrder() {
+    if (RECOMMENDATION_MATRIX && RECOMMENDATION_MATRIX.meta &&
+        Array.isArray(RECOMMENDATION_MATRIX.meta.growth_axis_order)) {
+      return RECOMMENDATION_MATRIX.meta.growth_axis_order.slice();
+    }
+    return GROWTH_AXIS_ORDER.slice();
+  }
+
+  function pickGrowthAxis(dayState) {
+    if (!dayState || !dayState.metrics) return null;
+    var order = growthAxisOrder();
+    for (var i = 0; i < order.length; i++) {
+      var axis = order[i];
+      var value = axisWorstValue(dayState, axis);
+      if (value !== null && value < 5) return axis;
+    }
+    return null;
+  }
+
+  function shouldUseGrowthMode(dayState, map) {
+    if (!isPlateauOrAbove(map.state)) return false;
+    if (["emergency_recovery", "recovery", "mixed", "mixed_severe", "single_issue"].indexOf(map.state) !== -1) {
+      return false;
+    }
+    return pickGrowthAxis(dayState) !== null;
+  }
+
+  function applyRecommendationMode(dayState, map) {
+    var next = Object.assign({}, map);
+    if (shouldUseGrowthMode(dayState, map)) {
+      var growthAxis = pickGrowthAxis(dayState);
+      var growthValue = axisWorstValue(dayState, growthAxis);
+      next.focus_axis = growthAxis;
+      next.focus_value = growthValue;
+      next.resource_band = resourceBandFromValue(growthValue);
+      next.mode = "growth";
+      return next;
+    }
+    if (map.resource_band === "min" ||
+        ["emergency_recovery", "recovery", "mixed", "mixed_severe"].indexOf(map.state) !== -1) {
+      next.mode = "recovery";
+      return next;
+    }
+    if (map.state === "high_performance" && pickGrowthAxis(dayState) === null) {
+      next.mode = "high";
+      return next;
+    }
+    next.mode = "steady";
+    return next;
+  }
+
+  function getGrowthEntry(axis) {
+    if (!RECOMMENDATION_MATRIX || !RECOMMENDATION_MATRIX.growth || !axis) return null;
+    return RECOMMENDATION_MATRIX.growth[axis] || null;
+  }
+
+  function getContentEntry(map, override) {
+    if (override) return override;
+    if (map.mode === "growth") {
+      var growthEntry = getGrowthEntry(map.focus_axis);
+      if (growthEntry) return growthEntry;
+    }
+    return getMatrixEntry(map.focus_axis, map.resource_band);
+  }
+
+  function growthAxisLabel(axis) {
+    var labels = {
+      sleep: "сон",
+      stress: "управление стрессом",
+      energy: "энергию"
+    };
+    return labels[axis] || "одну зону";
+  }
+
+  function buildDiagnosis(dayState, map, entry, leverageAxes) {
+    if (entry && entry.today) return String(entry.today).trim();
+    if (map.mode === "growth") {
+      return "Сегодня ресурс ровный — можно точечно усилить " + growthAxisLabel(map.focus_axis) + ".";
+    }
+    var summary = buildTodaySummary(dayState, map, leverageAxes);
+    if (summary && map.mode !== "high") return summary;
+    if (map.mode === "recovery" || map.resource_band === "min") {
+      return "Сегодня уровень восстановления ниже твоей нормы.";
+    }
+    if (map.mode === "high") {
+      return "Сегодня высокий ресурс и хорошая готовность к сложной работе.";
+    }
+    return summary || "Сегодня ресурс на среднем уровне — важно не перегрузить день.";
+  }
+
+  function getPercentRange(entry, map) {
+    if (entry && Array.isArray(entry.percent_range) && entry.percent_range.length >= 2) {
+      return entry.percent_range.slice();
+    }
+    var matrixEntry = getMatrixEntry(map.focus_axis, map.resource_band);
+    if (matrixEntry && Array.isArray(matrixEntry.percent_range)) {
+      return matrixEntry.percent_range.slice();
+    }
+    if (map.mode === "growth") {
+      var highEntry = getMatrixEntry(map.focus_axis, "max");
+      if (highEntry && Array.isArray(highEntry.percent_range)) return highEntry.percent_range.slice();
+      return [5, 15];
+    }
+    return null;
+  }
+
+  function buildResult(entry, map) {
+    var range = getPercentRange(entry, map);
+    if (!range) return "";
+    var lo = Number(range[0]);
+    var hi = Number(range[1]);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) return "";
+    var absLo = Math.min(Math.abs(lo), Math.abs(hi));
+    var absHi = Math.max(Math.abs(lo), Math.abs(hi));
+
+    if (map.mode === "growth") {
+      return "По данным исследований, улучшение " + growthAxisLabel(map.focus_axis) +
+        " может поднять концентрацию и качество решений примерно на " + absLo + "–" + absHi + "%.";
+    }
+    if (lo <= 0 && hi <= 0) {
+      return "В таком состоянии концентрация и продуктивность могут быть ниже обычного примерно на " +
+        absLo + "–" + absHi + "%. Восстановление может вернуть этот запас.";
+    }
+    if (lo >= 0 && hi >= 0) {
+      return "При таком восстановлении исследования связывают потенциал концентрации и качества решений с диапазоном примерно +" +
+        lo + "–" + hi + "%.";
+    }
+    return "Потенциальный эффект от корректировки дня — в диапазоне примерно " + lo + "–" + hi + "%.";
+  }
+
+  var RESULT_CONDITION = "Если следовать рекомендациям выше:";
+  var RESULT_DISCLAIMER = "Ориентировочная оценка, не гарантия — зависит от контекста и задач.";
+
+  function buildImpact(entry, map) {
+    if (!entry) return "";
+    if (entry.meaning) return String(entry.meaning).trim();
+    if (map.mode === "recovery" && entry.consequence) return String(entry.consequence).trim();
+    return "";
+  }
+
+  function buildBenefit(entry, map) {
+    if (entry && entry.benefit) return String(entry.benefit).trim();
+    if (map.mode === "recovery") {
+      return "Так ты сохранишь ресурс и повысишь вероятность сильного рабочего дня завтра вместо накопления усталости.";
+    }
+    if (map.mode === "growth") {
+      return "Точечное улучшение одной зоны — инвестиция в устойчивую продуктивность: чем больше восстановление, тем эффективнее ты работаешь.";
+    }
+    if (entry && entry.why) {
+      return "Так ты с большей вероятностью выполнишь важные задачи без ощущения перегрузки.";
+    }
+    return "Так ты с большей вероятностью выполнишь важные задачи без ощущения перегрузки.";
+  }
+
+  function buildSpecifics(entry, actions) {
+    if (entry && Array.isArray(entry.specifics) && entry.specifics.length) {
+      return uniqueList(entry.specifics, 3);
+    }
+    return uniqueList(actions, 3);
+  }
+
+  function cardTone(map) {
+    if (map.mode === "high" || map.mode === "growth") return "growth";
+    if (map.mode === "recovery") return "recovery";
+    return "steady";
+  }
+
   function shortHint(card, visible) {
     if (visible.indexOf("consequence") !== -1 && card.consequence) return card.consequence;
     if (visible.indexOf("meaning") !== -1 && card.meaning) {
@@ -355,41 +690,53 @@
   }
 
   function composeCard(dayState, map, override) {
-    var visible = visibleBlocksFor(map.template_key);
-    var primaryEntry = override || getMatrixEntry(map.focus_axis, map.resource_band);
+    var activeMap = applyRecommendationMode(dayState, map);
+    var visible = visibleBlocksFor(activeMap.template_key);
+    var primaryEntry = getContentEntry(activeMap, override || null);
     if (!primaryEntry && !override) return null;
 
-    var leverageAxes = collectLeverageAxes(dayState, map);
-    var plan = composePlan(dayState, map, primaryEntry);
-
-    var consequence = primaryEntry && primaryEntry.consequence ? String(primaryEntry.consequence).trim() : "";
-    if (visible.indexOf("consequence") === -1) consequence = "";
-
-    var draft = {
-      visible_blocks: visible,
-      today: override ? override.today : buildTodaySummary(dayState, map, leverageAxes),
-      meaning: primaryEntry ? primaryEntry.meaning || "" : "",
-      consequence: consequence,
-      plan: plan,
-      why: buildWhy(primaryEntry || override),
-      evidence_level: (primaryEntry || override) ? (primaryEntry || override).evidence_level || null : null,
-      state_label: getStateLabel(dayState),
-      focus_axis: map.focus_axis
-    };
-
+    var leverageAxes = collectLeverageAxes(dayState, activeMap);
+    var plan = composePlan(dayState, activeMap, primaryEntry);
     var actions = flattenActions(plan, 3);
+    if (!actions.length) return null;
+
+    var contentEntry = primaryEntry || override;
+    var diagnosis = buildDiagnosis(dayState, activeMap, contentEntry, leverageAxes);
+    var impact = buildImpact(primaryEntry, activeMap);
+    var benefit = buildBenefit(contentEntry, activeMap);
+    var result = buildResult(contentEntry, activeMap);
+    var specifics = buildSpecifics(contentEntry, actions);
+    var tone = cardTone(activeMap);
+
+    var proof = buildWhy(contentEntry);
+    var hasProof = !!(proof && (proof.text || (proof.sources && proof.sources.length)));
 
     return {
       visible_blocks: visible,
-      today: draft.today,
-      summary: draft.today,
-      hint: visible.length <= 2 ? "" : shortHint(draft, visible),
+      tone: tone,
+      state: diagnosis,
+      diagnosis: diagnosis,
+      impact: impact,
       actions: actions,
-      show_why: visible.indexOf("why") !== -1,
-      why: draft.why,
-      evidence_level: visible.indexOf("evidence") !== -1 ? draft.evidence_level : null,
-      state_label: draft.state_label,
-      text: draft.today
+      benefit: benefit,
+      result: result,
+      result_condition: RESULT_CONDITION,
+      result_disclaimer: RESULT_DISCLAIMER,
+      proof: proof,
+      show_proof: hasProof,
+      why_text: proof && proof.text ? proof.text : "",
+      specifics: specifics,
+      plan_label: PLAN_LABEL,
+      today: diagnosis,
+      summary: diagnosis,
+      hint: impact,
+      show_why: hasProof,
+      why: proof,
+      evidence_level: whyEntryEvidenceLevel(contentEntry),
+      state_label: getStateLabel(dayState),
+      focus_axis: activeMap.focus_axis,
+      mode: activeMap.mode,
+      text: diagnosis
     };
   }
 
@@ -467,8 +814,17 @@
     if (!dayState || !dayState.state) return [];
 
     var map = resolveContentMapping(dayState);
-    var override = STATE_OVERRIDES[map.template_key];
-    var card = composeCard(dayState, map, override || null);
+    var decisionKey = resolveDecisionKey(dayState);
+    var decisionEntry = getDecisionEntry(dayState, decisionKey);
+    var card = null;
+
+    if (decisionEntry) {
+      card = composeCardFromDecision(dayState, map, decisionEntry, decisionKey);
+    }
+    if (!card) {
+      var override = STATE_OVERRIDES[map.template_key];
+      card = composeCard(dayState, map, override || null);
+    }
 
     if (!card || !card.actions.length) return [];
 
@@ -492,6 +848,8 @@
     METRIC_TO_AXIS: METRIC_TO_AXIS,
     DEFAULT_FOCUS_METRIC: DEFAULT_FOCUS_METRIC,
     setRecommendationMatrix: setRecommendationMatrix,
+    setDecisionMatrix: setDecisionMatrix,
+    resolveDecisionKey: resolveDecisionKey,
     flattenActions: flattenActions,
     resourceBandFromValue: resourceBandFromValue,
     matrixBandKey: matrixBandKey,
@@ -502,6 +860,8 @@
     getRecommendations: getRecommendations,
     pickMorningEmbeddables: pickMorningEmbeddables,
     getMorningEmbeddable: getMorningEmbeddable,
+    pickGrowthAxis: pickGrowthAxis,
+    applyRecommendationMode: applyRecommendationMode,
     getStateLabel: getStateLabel
   };
 })(typeof window !== "undefined" ? window : globalThis);

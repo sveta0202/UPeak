@@ -253,6 +253,130 @@ input::placeholder { color: rgba(26, 54, 93, 0.4); }
 .intervention-summary {
   border-left-color: rgba(21, 128, 61, 0.55);
 }
+.intervention-diagnosis {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--text);
+}
+.intervention-state-badge {
+  display: inline-block;
+  margin: 0 0 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 999px;
+}
+.intervention-decision {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+}
+.intervention-avoid-label,
+.intervention-move-label {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.intervention-avoid-list {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(185, 28, 28, 0.9);
+}
+.intervention-avoid-list li {
+  margin-bottom: 4px;
+}
+.intervention-move {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: rgba(34, 197, 94, 0.06);
+  border-radius: 8px;
+}
+.intervention-impact {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.intervention-benefit-label,
+.intervention-result-label,
+.intervention-specifics-label {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.intervention-benefit {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: rgba(34, 197, 94, 0.08);
+  border-left: 3px solid rgba(34, 197, 94, 0.45);
+  border-radius: 8px;
+}
+.intervention-result-condition {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.intervention-result {
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: rgba(59, 130, 246, 0.08);
+  border-left: 3px solid rgba(59, 130, 246, 0.45);
+  border-radius: 8px;
+}
+.intervention-result-disclaimer {
+  margin: 0 0 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.intervention-benefit-science {
+  margin: 0 0 10px;
+  padding: 0 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.intervention-checklist {
+  margin: 0 0 10px;
+  padding-left: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.intervention-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.intervention-checklist .check-mark {
+  flex: 0 0 auto;
+  color: rgba(34, 197, 94, 0.9);
+  font-weight: 700;
+}
 .intervention-text,
 .intervention-rec,
 .intervention-meta {

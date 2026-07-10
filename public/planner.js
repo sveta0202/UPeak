@@ -195,6 +195,17 @@
         if (window.UpeakDayRecommendations && typeof window.UpeakDayRecommendations.setRecommendationMatrix === "function") {
           window.UpeakDayRecommendations.setRecommendationMatrix(data);
         }
+        return fetch("./day-decision-matrix.json");
+      })
+      .then(function (res) {
+        if (!res || !res.ok) return null;
+        return res.json();
+      })
+      .then(function (data) {
+        if (data && window.UpeakDayRecommendations &&
+            typeof window.UpeakDayRecommendations.setDecisionMatrix === "function") {
+          window.UpeakDayRecommendations.setDecisionMatrix(data);
+        }
       })
       .catch(function () {})
       .then(function () {
@@ -1046,11 +1057,28 @@
       return '<p class="intervention-why-text">' + escapeHtml(why) + "</p>";
     }
     var html = '<div class="intervention-why-inner">';
-    html += '<p class="intervention-why-text">' + escapeHtml(why.text) + "</p>";
+    if (why.text) {
+      html += '<p class="intervention-why-text">' + escapeHtml(why.text) + "</p>";
+    }
     if (why.evidence_level) {
       html += '<p class="intervention-why-meta">Доказательность: ' + escapeHtml(why.evidence_level) + "</p>";
     }
-    if (why.source) {
+    if (Array.isArray(why.sources) && why.sources.length) {
+      why.sources.forEach(function (src) {
+        if (!src || !src.title) return;
+        var label = src.title +
+          (src.authors ? " — " + src.authors : "") +
+          (src.year ? " (" + src.year + ")" : "");
+        html += '<p class="intervention-why-source">';
+        if (src.url) {
+          html += '<a href="' + escapeHtml(src.url) + '" target="_blank" rel="noopener noreferrer">' +
+            escapeHtml(label) + "</a>";
+        } else {
+          html += escapeHtml(label);
+        }
+        html += "</p>";
+      });
+    } else if (why.source) {
       html += '<p class="intervention-why-source">';
       if (why.url) {
         html += '<a href="' + escapeHtml(why.url) + '" target="_blank" rel="noopener noreferrer">' +
@@ -1237,14 +1265,24 @@
 
   function renderRecommendationCard(rec, idx) {
     var html = '<article class="intervention-card">';
-    html += '<p class="intervention-text">' + escapeHtml(rec.summary || rec.today || rec.text || "") + "</p>";
+    var tone = rec.tone || "steady";
+    var emoji = tone === "growth" || tone === "high" ? "🟢" : tone === "recovery" ? "🔴" : "🟡";
+    var stateText = rec.state || rec.diagnosis || rec.summary || rec.today || rec.text || "";
+    var planLabel = rec.plan_label || "Сегодня";
+    var proof = rec.proof || rec.why;
+    var showProof = rec.show_proof || rec.show_why;
 
-    if (rec.hint) {
-      html += '<p class="intervention-meta">' + escapeHtml(rec.hint) + "</p>";
+    if (rec.state_title) {
+      html += '<p class="intervention-state-badge">' + escapeHtml(rec.state_title) + "</p>";
+    }
+    html += '<p class="intervention-diagnosis">' + emoji + " " + escapeHtml(stateText) + "</p>";
+
+    if (rec.decision) {
+      html += '<p class="intervention-decision">' + escapeHtml(rec.decision) + "</p>";
     }
 
     if (Array.isArray(rec.actions) && rec.actions.length) {
-      html += '<p class="intervention-rec"><strong>Сегодня стоит:</strong></p>';
+      html += '<p class="intervention-rec"><strong>' + escapeHtml(planLabel) + "</strong></p>";
       html += '<ul class="intervention-list">';
       rec.actions.forEach(function (item) {
         html += "<li>" + escapeHtml(item) + "</li>";
@@ -1252,16 +1290,41 @@
       html += "</ul>";
     }
 
-    if (rec.show_why && rec.why && rec.why.text) {
+    if (Array.isArray(rec.avoid) && rec.avoid.length) {
+      html += '<p class="intervention-avoid-label"><strong>Избегай</strong></p>';
+      html += '<ul class="intervention-avoid-list">';
+      rec.avoid.forEach(function (item) {
+        html += "<li>" + escapeHtml(item) + "</li>";
+      });
+      html += "</ul>";
+    }
+
+    if (rec.move_to_max) {
+      html += '<p class="intervention-move-label"><strong>Как выйти на максимум</strong></p>';
+      html += '<p class="intervention-move">' + escapeHtml(rec.move_to_max) + "</p>";
+    }
+
+    if (rec.benefit) {
+      html += '<p class="intervention-benefit-label"><strong>Почему это важно</strong></p>';
+      html += '<p class="intervention-benefit">' + escapeHtml(rec.benefit) + "</p>";
+    }
+
+    if (rec.result) {
+      html += '<p class="intervention-result-label"><strong>Потенциальный эффект</strong></p>';
+      if (rec.result_condition) {
+        html += '<p class="intervention-result-condition">' + escapeHtml(rec.result_condition) + "</p>";
+      }
+      html += '<p class="intervention-result">' + escapeHtml(rec.result) + "</p>";
+      if (rec.result_disclaimer) {
+        html += '<p class="intervention-result-disclaimer">' + escapeHtml(rec.result_disclaimer) + "</p>";
+      }
+    }
+
+    if (showProof && proof && (proof.text || (proof.sources && proof.sources.length))) {
       html += '<button type="button" class="intervention-why-btn" data-why-target="morningWhy' + idx +
         '" aria-expanded="false">Почему?</button>';
       html += '<div class="intervention-why hidden" id="morningWhy' + idx + '">' +
-        renderWhyHtml(rec.why) + "</div>";
-    }
-
-    if (rec.evidence_level) {
-      html += '<p class="intervention-evidence-badge">' +
-        escapeHtml(rec.evidence_level) + " доказательность</p>";
+        renderWhyHtml(proof) + "</div>";
     }
 
     html += "</article>";
