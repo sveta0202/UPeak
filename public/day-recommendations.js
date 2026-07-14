@@ -144,6 +144,25 @@
     DECISION_MATRIX = data && data.decisions ? data : null;
   }
 
+  function highDecisionMetricValues(metrics) {
+    if (!metrics) return [];
+    return [
+      Number(metrics.sleep_hours),
+      Number(metrics.sleep_quality),
+      Number(metrics.energy),
+      Number(metrics.stress)
+    ];
+  }
+
+  // High: ≥2 метрик на 5, остальные не ниже 4 (сон 4+4 при энергии/стрессе 5 — ок).
+  function qualifiesForHighDecision(metrics) {
+    var values = highDecisionMetricValues(metrics);
+    if (values.length !== 4) return false;
+    if (values.some(function (v) { return !Number.isFinite(v) || v < 4; })) return false;
+    var fives = values.filter(function (v) { return v >= 5; }).length;
+    return fives >= 2;
+  }
+
   function resolveDecisionKey(dayState) {
     if (!dayState) return null;
     if (dayState.sub_state === "mixed_severe") return "emergency_recovery";
@@ -152,10 +171,7 @@
     if (dayState.state === "plateau" || dayState.state === "normal") return "plateau";
     if (dayState.state === "single_issue") return "single_issue";
     if (dayState.state === "high_performance") {
-      var m = dayState.metrics;
-      if (m && m.sleep_hours >= 5 && m.sleep_quality >= 5 && m.energy >= 5 && m.stress >= 5) {
-        return "high";
-      }
+      if (qualifiesForHighDecision(dayState.metrics)) return "high";
       return "growth";
     }
     return "plateau";
@@ -181,14 +197,49 @@
       (src.year ? " (" + src.year + ")" : "");
   }
 
+  function pickGrowthSleepMetric(dayState) {
+    if (!dayState || !dayState.metrics) return "sleep_hours";
+    var hours = Number(dayState.metrics.sleep_hours);
+    var quality = Number(dayState.metrics.sleep_quality);
+    if (!Number.isFinite(hours) || !Number.isFinite(quality)) return "sleep_hours";
+    if (hours >= 4 && quality < 5) return "sleep_quality";
+    if (hours < quality) return "sleep_hours";
+    if (quality < hours) return "sleep_quality";
+    return hours <= 3 ? "sleep_hours" : "sleep_quality";
+  }
+
+  function qualifiesSleepTune(dayState, decisionKey) {
+    var sleepWorst = axisWorstValue(dayState, "sleep");
+    if (sleepWorst === null || sleepWorst < 4 || sleepWorst >= 5) return false;
+    if (decisionKey === "high") return true;
+    return decisionKey === "growth" && pickGrowthAxis(dayState) === "sleep";
+  }
+
   function personalizeGrowthEntry(base, dayState) {
     var entry = shallowCopyDecision(base);
     var axis = pickGrowthAxis(dayState);
     if (axis && base.by_axis && base.by_axis[axis]) {
       var axisBlock = base.by_axis[axis];
+      if (axis === "sleep" && axisBlock.by_metric) {
+        var metricKey = pickGrowthSleepMetric(dayState);
+        var metricBlock = axisBlock.by_metric[metricKey];
+        if (metricBlock) axisBlock = Object.assign({}, axisBlock, metricBlock);
+        if (qualifiesSleepTune(dayState, "growth")) {
+          axisBlock = Object.assign({}, axisBlock, {
+            state_text: "Сон чуть короче идеала — вечером добери, днём начни со сложного блока."
+          });
+          delete axisBlock.focus_action;
+        }
+      }
       if (axisBlock.state_text) entry.state_text = axisBlock.state_text;
       if (axisBlock.focus_action) {
-        entry.today_action = uniqueList([axisBlock.focus_action].concat(base.today_action || []), 2);
+        var metrics = dayState.metrics || {};
+        var workFirst = Number(metrics.energy) >= 4 && Number(metrics.stress) >= 4;
+        if (workFirst) {
+          entry.today_action = uniqueList((base.today_action || []).concat([axisBlock.focus_action]), 2);
+        } else {
+          entry.today_action = uniqueList([axisBlock.focus_action].concat(base.today_action || []), 2);
+        }
       }
     }
     return entry;
@@ -206,6 +257,30 @@
     return entry;
   }
 
+  function highSleepNeedsTune(metrics) {
+    if (!metrics) return false;
+    return Number(metrics.sleep_hours) < 5 || Number(metrics.sleep_quality) < 5;
+  }
+
+  function personalizeHighEntry(base, dayState) {
+    var entry = shallowCopyDecision(base);
+    var metrics = dayState && dayState.metrics;
+    if (!highSleepNeedsTune(metrics)) return entry;
+
+    var profile = base.by_profile && base.by_profile.sleep_tune;
+    if (profile) {
+      if (profile.state_text) entry.state_text = profile.state_text;
+      if (profile.expected_gain) entry.expected_gain = profile.expected_gain;
+      if (profile.why) entry.why = profile.why;
+      if (profile.decision) entry.decision = profile.decision;
+    } else {
+      entry.state_text = "Сильный день — энергия и стресс в порядке, сон чуть ниже идеала.";
+      entry.expected_gain =
+        "Сегодня: +10–20% на сложных задачах. Завтра: +5–10% к ресурсу, если вечером доберёшь сон.";
+    }
+    return entry;
+  }
+
   function getDecisionEntry(dayState, decisionKey) {
     if (!DECISION_MATRIX || !DECISION_MATRIX.decisions) return null;
     decisionKey = decisionKey || resolveDecisionKey(dayState);
@@ -213,7 +288,29 @@
     if (!base) return null;
     if (decisionKey === "growth") return personalizeGrowthEntry(base, dayState);
     if (decisionKey === "single_issue") return personalizeSingleIssueEntry(base, dayState);
+    if (decisionKey === "high") return personalizeHighEntry(base, dayState);
     return shallowCopyDecision(base);
+  }
+
+  // Уточнённый идентификатор карточки для аналитики/фидбэка: decision_key
+  // сам по себе не различает варианты внутри single_issue/growth/high —
+  // card_id добавляет ось/метрику, чтобы в таблице было видно, какой именно
+  // текст видел человек.
+  function buildCardId(dayState, decisionKey) {
+    if (decisionKey === "single_issue") {
+      var issue = dayState && dayState.primary_issue;
+      return issue ? decisionKey + ":" + issue : decisionKey;
+    }
+    if (decisionKey === "growth") {
+      var axis = pickGrowthAxis(dayState);
+      if (!axis) return decisionKey;
+      if (axis === "sleep") return decisionKey + ":" + pickGrowthSleepMetric(dayState);
+      return decisionKey + ":" + axis;
+    }
+    if (decisionKey === "high" && highSleepNeedsTune(dayState && dayState.metrics)) {
+      return decisionKey + ":sleep_tune";
+    }
+    return decisionKey;
   }
 
   function buildProofFromEvidence(entry) {
@@ -271,7 +368,8 @@
       state_label: entry.state || getStateLabel(dayState),
       focus_axis: map.focus_axis,
       mode: decisionKey,
-      decision_key: decisionKey
+      decision_key: decisionKey,
+      card_id: buildCardId(dayState, decisionKey)
     };
   }
 
@@ -642,7 +740,7 @@
     return "Потенциальный эффект от корректировки дня — в диапазоне примерно " + lo + "–" + hi + "%.";
   }
 
-  var RESULT_CONDITION = "Если следовать рекомендациям выше:";
+  var RESULT_CONDITION = "Ориентир по эффекту (сегодня — если не указано «завтра»):";
   var RESULT_DISCLAIMER = "Ориентировочная оценка, не гарантия — зависит от контекста и задач.";
 
   function buildImpact(entry, map) {
@@ -744,10 +842,21 @@
     options = options || {};
     var sleepWorst = axisWorstValue(dayState, "sleep");
     var stressValue = getMetricValue(dayState, "stress");
+    var energyValue = getMetricValue(dayState, "energy");
+    var energyWorst = axisWorstValue(dayState, "energy");
+    var decisionKey = resolveDecisionKey(dayState);
 
     return {
       sleep_low: sleepWorst !== null && sleepWorst <= 2,
       stress_high: stressValue !== null && stressValue <= 2,
+      energy_low: energyWorst !== null && energyWorst <= 2,
+      recovery_day: decisionKey === "emergency_recovery" || dayState.state === "recovery",
+      plateau_day: decisionKey === "plateau",
+      growth_day: decisionKey === "growth",
+      high_day: decisionKey === "high",
+      sleep_tune: qualifiesSleepTune(dayState, decisionKey),
+      single_issue: dayState.state === "single_issue",
+      stress_issue: dayState.state === "single_issue" && dayState.primary_issue === "stress",
       decisions: options.decisions || {},
       existingIds: Array.isArray(options.existingIds) ? options.existingIds : []
     };
@@ -850,6 +959,7 @@
     setRecommendationMatrix: setRecommendationMatrix,
     setDecisionMatrix: setDecisionMatrix,
     resolveDecisionKey: resolveDecisionKey,
+    qualifiesForHighDecision: qualifiesForHighDecision,
     flattenActions: flattenActions,
     resourceBandFromValue: resourceBandFromValue,
     matrixBandKey: matrixBandKey,

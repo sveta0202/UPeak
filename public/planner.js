@@ -21,6 +21,7 @@
     state.morningRecommendations = [];
     state.morningEmbedDecisions = {};
     state.morningEmbedDate = "";
+    state.morningCardFeedback = null;
   }
 
   function sanitizeMorningSession() {
@@ -38,8 +39,14 @@
       "planner.tasks.edit": "Редактировать задачу",
       "planner.tasks.delete": "Удалить задачу",
       "planner.tasks.postpone": "Перенести задачу на завтра",
+      "planner.tasks.menu": "Меню задачи",
       "planner.tasks.routineChip": "Рутина",
       "planner.tasks.dragHandle": "Перетащите, чтобы изменить порядок",
+      "planner.tasks.subtaskPh": "Подзадача…",
+      "planner.tasks.subtaskDelete": "Удалить подзадачу",
+      "planner.tasks.subtasks": "Подзадачи",
+      "planner.tasks.subtaskAdd": "Добавить подзадачу",
+      "planner.tasks.subtasksToggle": "Показать подзадачи",
       "planner.scheduled.empty": "Список запланированного пуст",
       "planner.scheduled.restore": "Вернуть задачу на сегодня",
       "planner.scheduled.delete": "Удалить задачу",
@@ -48,6 +55,10 @@
       "planner.sync.error": "Ошибка синхронизации",
       "planner.evening.dayClosed": "День закрыт",
       "planner.evening.dayOpen": "День не закрыт",
+      "planner.evening.reviewTitle": "Итог дня",
+      "planner.evening.reviewPlanMeta": "· по плану {pct}%",
+      "planner.evening.scaleInvalid": "Укажите значение от 1 до 5 во всех полях вечернего чек-ина.",
+      "planner.morning.recommendationsTitle": "Рекомендации на сегодня",
       "planner.alerts.titleRequired": "Введите название задачи",
       "planner.id.required": "Сохраните «Мой ID», чтобы данные попадали в основную таблицу.",
       "planner.id.empty": "Введите ID участника.",
@@ -65,7 +76,11 @@
       "planner.slot.simplify": "Упростить или перенести",
       "planner.morning.embedAdd": "Добавить в план",
       "planner.morning.embedLater": "Позже",
-      "planner.morning.embedAdded": "Добавлено в план"
+      "planner.morning.embedAdded": "Добавлено в план",
+      "planner.cardFeedback.prompt": "Помогла рекомендация?",
+      "planner.cardFeedback.yes": "Да, полезно",
+      "planner.cardFeedback.no": "Не очень",
+      "planner.cardFeedback.thanks": "Спасибо, учтём"
     },
     en: {
       "planner.tasks.add": "Add task",
@@ -75,8 +90,14 @@
       "planner.tasks.edit": "Edit task",
       "planner.tasks.delete": "Delete task",
       "planner.tasks.postpone": "Move task to tomorrow",
+      "planner.tasks.menu": "Task menu",
       "planner.tasks.routineChip": "Routine",
       "planner.tasks.dragHandle": "Drag to reorder",
+      "planner.tasks.subtaskPh": "Subtask…",
+      "planner.tasks.subtaskDelete": "Remove subtask",
+      "planner.tasks.subtasks": "Subtasks",
+      "planner.tasks.subtaskAdd": "Add subtask",
+      "planner.tasks.subtasksToggle": "Toggle subtasks",
       "planner.scheduled.empty": "Nothing scheduled yet",
       "planner.scheduled.restore": "Bring task to today",
       "planner.scheduled.delete": "Delete task",
@@ -85,6 +106,10 @@
       "planner.sync.error": "Sync error",
       "planner.evening.dayClosed": "Day closed",
       "planner.evening.dayOpen": "Day not closed",
+      "planner.evening.reviewTitle": "Day summary",
+      "planner.evening.reviewPlanMeta": "· plan {pct}%",
+      "planner.evening.scaleInvalid": "Enter a value from 1 to 5 in all evening check-in fields.",
+      "planner.morning.recommendationsTitle": "Recommendations for today",
       "planner.alerts.titleRequired": "Please enter a task title",
       "planner.id.required": "Save \"My ID\" so your data reaches the main data sheet.",
       "planner.id.empty": "Enter a participant ID.",
@@ -102,7 +127,11 @@
       "planner.slot.simplify": "Simplify or postpone",
       "planner.morning.embedAdd": "Add to plan",
       "planner.morning.embedLater": "Later",
-      "planner.morning.embedAdded": "Added to plan"
+      "planner.morning.embedAdded": "Added to plan",
+      "planner.cardFeedback.prompt": "Was this helpful?",
+      "planner.cardFeedback.yes": "Yes, helpful",
+      "planner.cardFeedback.no": "Not really",
+      "planner.cardFeedback.thanks": "Thanks for the feedback"
     }
   };
 
@@ -128,8 +157,14 @@
   };
 
   var editingTaskId = null;
+  var openMenuTaskId = null;
+  var openSubtaskPanelIds = {};
+  var subtaskAddInputTaskId = null;
+  var skipNextSubtaskAddBlur = false;
   var lastSyncStatus = "idle";
   var participantIdLocked = false;
+  var morningMatrixVersion = "";
+  var eveningMatrixVersion = "";
 
   function getLang() {
     if (window.UpeakI18n && typeof window.UpeakI18n.getLang === "function") {
@@ -168,6 +203,7 @@
     updateDayStatus();
     updateSyncStatus("idle");
     setupParticipantId();
+    restoreEveningForm();
     if (state.dayState && window.UpeakDayRecommendations) {
       state.morningRecommendations = buildMorningRecommendations();
     }
@@ -175,6 +211,199 @@
       refreshEveningReview();
     }
     refreshInterventionBlocks();
+    document.addEventListener("click", closeAllRowMenus);
+  }
+
+  function closeAllRowMenus(clearPending) {
+    document.querySelectorAll(".row-menu").forEach(function (menu) {
+      menu.classList.add("hidden");
+    });
+    document.querySelectorAll("[data-menu-toggle]").forEach(function (button) {
+      button.setAttribute("aria-expanded", "false");
+    });
+    document.querySelectorAll(".card.menu-open").forEach(function (card) {
+      card.classList.remove("menu-open");
+    });
+    if (clearPending !== false) openMenuTaskId = null;
+  }
+
+  function openRowMenuForTask(taskId) {
+    if (!taskId || !el.taskTableBody) return;
+    var row = el.taskTableBody.querySelector('tr.task-row[data-task-id="' + taskId + '"]');
+    if (!row) return;
+
+    var menu = row.querySelector(".row-menu");
+    var button = row.querySelector("[data-menu-toggle]");
+    if (!menu || !button) return;
+
+    closeAllRowMenus(false);
+    menu.classList.remove("hidden");
+    button.setAttribute("aria-expanded", "true");
+    var card = row.closest(".card");
+    if (card) card.classList.add("menu-open");
+    openMenuTaskId = taskId;
+  }
+
+  function refreshTasksKeepSubtaskPanel(taskId) {
+    if (taskId) openSubtaskPanelIds[taskId] = true;
+    renderTasks();
+  }
+
+  function toggleSubtaskPanel(taskId) {
+    if (!taskId) return;
+    if (openSubtaskPanelIds[taskId]) {
+      delete openSubtaskPanelIds[taskId];
+      if (subtaskAddInputTaskId === taskId) subtaskAddInputTaskId = null;
+    } else {
+      openSubtaskPanelIds[taskId] = true;
+    }
+    renderTasks();
+  }
+
+  function showSubtaskAddInput(taskId) {
+    if (!taskId) return;
+    openSubtaskPanelIds[taskId] = true;
+    subtaskAddInputTaskId = taskId;
+    renderTasks();
+  }
+
+  function clearSubtaskPanelIfEmpty(taskId) {
+    var task = findTaskById(taskId);
+    if (!task || normalizeSubtasks(task.subtasks).length) return;
+    delete openSubtaskPanelIds[taskId];
+    if (subtaskAddInputTaskId === taskId) subtaskAddInputTaskId = null;
+  }
+
+  function focusSubtaskAddInput() {
+    if (!subtaskAddInputTaskId || !el.taskTableBody) return;
+    var input = el.taskTableBody.querySelector(
+      '.notion-subtask-add-input[data-task-id="' + subtaskAddInputTaskId + '"]'
+    );
+    if (input) input.focus();
+  }
+
+  function bindSubtaskPanelToggles() {
+    el.taskTableBody.querySelectorAll("[data-subtasks-toggle]").forEach(function (button) {
+      button.addEventListener("click", function (event) {
+        event.stopPropagation();
+        toggleSubtaskPanel(button.getAttribute("data-task-id"));
+      });
+    });
+  }
+
+  function renderNotionTaskCell(task, titleHtml, routineNoteHtml) {
+    var subtasks = normalizeSubtasks(task.subtasks);
+    var isOpen = !!openSubtaskPanelIds[task.id];
+    var hasSubtasks = subtasks.length > 0;
+    var showSubtaskUi = hasSubtasks || isOpen;
+    var doneCount = subtasks.filter(function (subtask) { return subtask.done; }).length;
+    var parts = [
+      '<div class="task-cell notion-task' + (showSubtaskUi ? " notion-task--subtasks" : "") + '">'
+    ];
+
+    parts.push('<div class="notion-task-head">');
+    if (showSubtaskUi) {
+      parts.push(
+        '<button type="button" class="notion-chevron' + (isOpen ? " is-open" : "") + (hasSubtasks ? " has-children" : "") + '" data-subtasks-toggle data-task-id="' + escapeAttr(task.id) + '" aria-expanded="' + (isOpen ? "true" : "false") + '" aria-label="' + escapeAttr(t("planner.tasks.subtasksToggle")) + '">',
+          '<svg class="notion-chevron-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">',
+            '<path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>',
+          "</svg>",
+        "</button>"
+      );
+    }
+    parts.push('<div class="notion-task-main">');
+    parts.push('<span class="task-title' + (task.done ? " task-done" : "") + '">' + titleHtml + "</span>");
+    if (hasSubtasks && !isOpen) {
+      parts.push('<span class="notion-sub-count">' + escapeHtml(doneCount + "/" + subtasks.length) + "</span>");
+    }
+    if (routineNoteHtml) parts.push(routineNoteHtml);
+    parts.push("</div></div>");
+
+    if (isOpen) {
+      parts.push('<div class="notion-subtasks">');
+      subtasks.forEach(function (subtask) {
+        parts.push(
+          '<div class="notion-subtask-row">',
+            '<input type="checkbox" class="subtask-toggle notion-subtask-check" data-task-id="' + escapeAttr(task.id) + '" data-subtask-id="' + escapeAttr(subtask.id) + '"' + (subtask.done ? " checked" : "") + ">",
+            '<input type="text" class="subtask-title notion-subtask-input' + (subtask.done ? " subtask-done" : "") + '" data-task-id="' + escapeAttr(task.id) + '" data-subtask-id="' + escapeAttr(subtask.id) + '" value="' + escapeAttr(subtask.title) + '" maxlength="120" spellcheck="false">',
+            '<button type="button" class="subtask-delete notion-subtask-delete" data-task-id="' + escapeAttr(task.id) + '" data-subtask-id="' + escapeAttr(subtask.id) + '" title="' + escapeAttr(t("planner.tasks.subtaskDelete")) + '" aria-label="' + escapeAttr(t("planner.tasks.subtaskDelete")) + '">×</button>',
+          "</div>"
+        );
+      });
+
+      if (subtaskAddInputTaskId === task.id) {
+        parts.push(
+          '<div class="notion-subtask-row notion-subtask-row-new">',
+            '<span class="notion-subtask-check-spacer" aria-hidden="true"></span>',
+            '<input type="text" class="notion-subtask-add-input" data-task-id="' + escapeAttr(task.id) + '" placeholder="' + escapeAttr(t("planner.tasks.subtaskPh")) + '" maxlength="120" autocomplete="off" spellcheck="false">',
+          "</div>"
+        );
+      }
+
+      parts.push("</div>");
+    }
+
+    parts.push("</div>");
+    return parts.join("");
+  }
+
+  function bindRowMenus(root) {
+    var scope = root || document;
+
+    scope.querySelectorAll("[data-menu-toggle]").forEach(function (button) {
+      if (button.dataset.menuBound === "1") return;
+      button.dataset.menuBound = "1";
+
+      button.addEventListener("click", function (event) {
+        event.stopPropagation();
+        var menu = button.parentElement && button.parentElement.querySelector(".row-menu");
+        var isOpen = menu && !menu.classList.contains("hidden");
+        var row = button.closest("tr[data-task-id]");
+        var taskId = row ? row.getAttribute("data-task-id") : null;
+        closeAllRowMenus();
+        if (!isOpen && menu) {
+          openMenuTaskId = taskId;
+          menu.classList.remove("hidden");
+          button.setAttribute("aria-expanded", "true");
+          var card = button.closest(".card");
+          if (card) card.classList.add("menu-open");
+        }
+      });
+    });
+
+    scope.querySelectorAll(".row-menu").forEach(function (menu) {
+      menu.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+    });
+  }
+
+  function renderRowMenuButton(menuLabel, menuItemsHtml) {
+    return [
+      '<button type="button" class="menu-btn" data-menu-toggle="1" aria-label="' + escapeAttr(menuLabel) + '" aria-expanded="false">',
+        "···",
+      "</button>",
+      '<div class="row-menu hidden">',
+        menuItemsHtml,
+      "</div>"
+    ].join("");
+  }
+
+  function renderScheduledActionsCell(task) {
+    var menuItems = [
+      '<button type="button" class="menu-item" data-scheduled-action="restore" data-scheduled-id="' + escapeAttr(task.id || "") + '">',
+        escapeHtml(t("planner.scheduled.restore")),
+      "</button>",
+      '<button type="button" class="menu-item menu-item-danger" data-scheduled-action="delete" data-scheduled-id="' + escapeAttr(task.id || "") + '">',
+        escapeHtml(t("planner.scheduled.delete")),
+      "</button>"
+    ].join("");
+
+    return [
+      '<td class="actions-cell">',
+        renderRowMenuButton(t("planner.tasks.menu"), menuItems),
+      "</td>"
+    ].join("");
   }
 
   function loadRecommendationMatrix(done) {
@@ -206,6 +435,9 @@
             typeof window.UpeakDayRecommendations.setDecisionMatrix === "function") {
           window.UpeakDayRecommendations.setDecisionMatrix(data);
         }
+        if (data && data.meta && data.meta.version) {
+          morningMatrixVersion = String(data.meta.version);
+        }
       })
       .catch(function () {})
       .then(function () {
@@ -221,6 +453,20 @@
       .then(function (data) {
         if (window.UpeakEveningRecommendations && typeof window.UpeakEveningRecommendations.setEveningMatrix === "function") {
           window.UpeakEveningRecommendations.setEveningMatrix(data);
+        }
+        return fetch("./evening-decision-matrix.json");
+      })
+      .then(function (res) {
+        if (!res || !res.ok) return null;
+        return res.json();
+      })
+      .then(function (data) {
+        if (data && window.UpeakEveningRecommendations &&
+            typeof window.UpeakEveningRecommendations.setDecisionMatrix === "function") {
+          window.UpeakEveningRecommendations.setDecisionMatrix(data);
+        }
+        if (data && data.meta && data.meta.version) {
+          eveningMatrixVersion = String(data.meta.version);
         }
       })
       .catch(function () {})
@@ -317,7 +563,8 @@
         id: makeId(),
         done: false,
         order: nextOrder(),
-        slotKey: formTask.routine ? SLOT_KEYS.morningRoutine : SLOT_KEYS.none
+        slotKey: formTask.routine ? SLOT_KEYS.morningRoutine : SLOT_KEYS.none,
+        subtasks: []
       }, formTask);
 
       state.tasks.push(task);
@@ -364,12 +611,22 @@
   byId("eveningForm").addEventListener("submit", function (event) {
     event.preventDefault();
 
+    var fatigue = getScale1to5("fatigue");
+    var taskStart = getScale1to5("eveningTaskStart");
+    var procrastination = getScale1to5("eveningProcrastination");
+    var detachment = getScale1to5("eveningDetachment");
+    if (!Number.isFinite(fatigue) || !Number.isFinite(taskStart) ||
+        !Number.isFinite(procrastination) || !Number.isFinite(detachment)) {
+      alert(t("planner.evening.scaleInvalid"));
+      return;
+    }
+
     state.evening = {
       date: today,
-      fatigue: getNum("fatigue"),
-      taskStart: getNum("eveningTaskStart"),
-      procrastination: getNum("eveningProcrastination"),
-      detachment: getNum("eveningDetachment"),
+      fatigue: fatigue,
+      taskStart: taskStart,
+      procrastination: procrastination,
+      detachment: detachment,
       note: byId("eveningNote").value.trim(),
       completed: state.tasks.filter(function (task) { return task.done; }).length,
       total: state.tasks.length
@@ -383,8 +640,12 @@
     updateDayStatus();
     renderEveningReview();
 
+    if (el.eveningReview) {
+      el.eveningReview.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
     if (!requireVerifiedParticipantId()) return;
-    sync("evening_checkout", state.evening);
+    sync("evening_checkout", buildEveningSyncPayload());
   });
 
   // Распределение по состоянию: учитываем срочность (приоритет), важность, сложность и
@@ -484,6 +745,7 @@
         urgency: task.urgency,
         duration: task.duration,
         routine: !!task.routine,
+        subtasks: normalizeSubtasks(task.subtasks),
         scheduledFor: tomorrow,
         addedAt: new Date().toISOString()
       });
@@ -539,6 +801,7 @@
         urgency: Number(item.urgency) || 3,
         duration: Number(item.duration) || 30,
         routine: !!item.routine,
+        subtasks: normalizeSubtasks(item.subtasks),
         done: false,
         order: nextOrder(),
         slotKey: item.routine ? SLOT_KEYS.morningRoutine : SLOT_KEYS.none
@@ -577,12 +840,35 @@
     return SLOT_KEYS.eveningLight;
   }
 
+  function renderTaskActionsCell(task) {
+    var menuItems = [
+      '<button type="button" class="menu-item" data-action="edit" data-task-id="' + escapeAttr(task.id) + '">',
+        escapeHtml(t("planner.tasks.edit")),
+      "</button>",
+      '<button type="button" class="menu-item" data-action="postpone" data-task-id="' + escapeAttr(task.id) + '">',
+        escapeHtml(t("planner.tasks.postpone")),
+      "</button>",
+      '<button type="button" class="menu-item" data-action="subtask-add" data-task-id="' + escapeAttr(task.id) + '">',
+        escapeHtml(t("planner.tasks.subtaskAdd")),
+      "</button>",
+      '<button type="button" class="menu-item menu-item-danger" data-action="delete" data-task-id="' + escapeAttr(task.id) + '">',
+        escapeHtml(t("planner.tasks.delete")),
+      "</button>"
+    ].join("");
+
+    return [
+      '<td class="actions-cell">',
+        renderRowMenuButton(t("planner.tasks.menu"), menuItems),
+      "</td>"
+    ].join("");
+  }
+
   function renderTaskRow(task, index, isRecommendation) {
     var slotLabel = t(task.slotKey || SLOT_KEYS.none);
     var title = escapeHtml(task.title || "");
     var slot = escapeHtml(slotLabel || "");
-    var routineChip = isRoutineTask(task)
-      ? '<span class="routine-chip">' + escapeHtml(t("planner.tasks.routineChip")) + "</span>"
+    var routineNote = isRoutineTask(task)
+      ? '<span class="task-meta-note">' + escapeHtml(t("planner.tasks.routineChip")) + "</span>"
       : "";
     var rowClass = "task-row" + (isRecommendation ? " task-row-recommendation" : "");
 
@@ -594,28 +880,13 @@
         "</td>",
         '<td><input type="checkbox" class="task-toggle" data-task-id="' + escapeAttr(task.id) + '"' + (task.done ? " checked" : "") + "></td>",
         "<td>",
-          '<span class="task-title' + (task.done ? " task-done" : "") + '">',
-            title,
-            routineChip,
-          "</span>",
+          renderNotionTaskCell(task, title, routineNote),
         "</td>",
         "<td>" + Number(task.difficulty || 0) + "</td>",
         "<td>" + Number(task.urgency || 0) + "</td>",
         "<td>" + Number(task.duration || 0) + "</td>",
-        '<td><span class="slot-chip">' + slot + "</span></td>",
-        '<td class="actions-cell">',
-          '<div class="table-actions">',
-            '<button type="button" class="table-action edit" data-action="edit" data-task-id="' + escapeAttr(task.id) + '">',
-              escapeHtml(t("planner.tasks.edit")),
-            "</button>",
-            '<button type="button" class="table-action danger" data-action="delete" data-task-id="' + escapeAttr(task.id) + '">',
-              escapeHtml(t("planner.tasks.delete")),
-            "</button>",
-            '<button type="button" class="table-action ghost" data-action="postpone" data-task-id="' + escapeAttr(task.id) + '">',
-              escapeHtml(t("planner.tasks.postpone")),
-            "</button>",
-          "</div>",
-        "</td>",
+        '<td><span class="slot-text">' + slot + "</span></td>",
+        renderTaskActionsCell(task),
       "</tr>"
     ].join("");
   }
@@ -652,7 +923,12 @@
     el.taskTableBody.innerHTML = htmlParts.join("");
 
     bindTaskRowActions();
+    bindSubtaskActions();
+    bindSubtaskPanelToggles();
+    bindRowMenus(el.taskTableBody);
     bindTaskDragAndDrop();
+    if (openMenuTaskId) openRowMenuForTask(openMenuTaskId);
+    focusSubtaskAddInput();
   }
 
   function renderScheduled() {
@@ -670,26 +946,20 @@
           "<td>" + Number(task.urgency || 0) + "</td>",
           "<td>" + Number(task.duration || 0) + "</td>",
           "<td>" + escapeHtml(task.scheduledFor || "") + "</td>",
-          '<td class="actions-cell">',
-            '<div class="table-actions">',
-              '<button type="button" class="table-action edit" data-scheduled-action="restore" data-scheduled-id="' + escapeAttr(task.id || "") + '">',
-                escapeHtml(t("planner.scheduled.restore")),
-              "</button>",
-              '<button type="button" class="table-action danger" data-scheduled-action="delete" data-scheduled-id="' + escapeAttr(task.id || "") + '">',
-                escapeHtml(t("planner.scheduled.delete")),
-              "</button>",
-            "</div>",
-          "</td>",
+          renderScheduledActionsCell(task),
         "</tr>"
       ].join("");
     }).join("");
 
     bindScheduledActions();
+    bindRowMenus(el.scheduledTableBody);
   }
 
   function bindTaskRowActions() {
-    el.taskTableBody.querySelectorAll("[data-action]").forEach(function (button) {
-      button.addEventListener("click", function () {
+    el.taskTableBody.querySelectorAll(".menu-item[data-action]").forEach(function (button) {
+      button.addEventListener("click", function (event) {
+        event.stopPropagation();
+        closeAllRowMenus();
         var action = button.getAttribute("data-action");
         var id = button.getAttribute("data-task-id");
         if (!id) return;
@@ -704,6 +974,10 @@
         }
         if (action === "postpone") {
           postponeTask(id);
+          return;
+        }
+        if (action === "subtask-add") {
+          showSubtaskAddInput(id);
         }
       });
     });
@@ -715,9 +989,196 @@
     });
   }
 
+  function commitSubtaskAddInput(input) {
+    if (!input) return false;
+    var taskId = input.getAttribute("data-task-id");
+    var value = String(input.value || "").trim();
+    if (!value || !taskId || !findTaskById(taskId)) return false;
+
+    skipNextSubtaskAddBlur = true;
+    input.value = "";
+    addSubtask(taskId, value);
+    return true;
+  }
+
+  function bindSubtaskActions() {
+    el.taskTableBody.querySelectorAll(".subtask-toggle").forEach(function (checkbox) {
+      checkbox.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+      checkbox.addEventListener("change", function (event) {
+        event.stopPropagation();
+        var taskId = checkbox.getAttribute("data-task-id");
+        toggleSubtask(taskId, checkbox.getAttribute("data-subtask-id"));
+      });
+    });
+
+    el.taskTableBody.querySelectorAll(".notion-subtask-add-input").forEach(function (input) {
+      input.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+      input.addEventListener("keydown", function (event) {
+        event.stopPropagation();
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commitSubtaskAddInput(input);
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          var escapeTaskId = input.getAttribute("data-task-id");
+          skipNextSubtaskAddBlur = true;
+          subtaskAddInputTaskId = null;
+          clearSubtaskPanelIfEmpty(escapeTaskId);
+          renderTasks();
+        }
+      });
+      input.addEventListener("blur", function () {
+        if (skipNextSubtaskAddBlur) {
+          skipNextSubtaskAddBlur = false;
+          return;
+        }
+
+        var taskId = input.getAttribute("data-task-id");
+        var value = String(input.value || "").trim();
+        if (value) {
+          commitSubtaskAddInput(input);
+          return;
+        }
+        if (subtaskAddInputTaskId === taskId) {
+          subtaskAddInputTaskId = null;
+        }
+        clearSubtaskPanelIfEmpty(taskId);
+        renderTasks();
+      });
+    });
+
+    el.taskTableBody.querySelectorAll(".subtask-title").forEach(function (input) {
+      input.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+      input.addEventListener("blur", function () {
+        renameSubtask(
+          input.getAttribute("data-task-id"),
+          input.getAttribute("data-subtask-id"),
+          input.value
+        );
+      });
+      input.addEventListener("keydown", function (event) {
+        event.stopPropagation();
+        if (event.key === "Enter") {
+          event.preventDefault();
+          input.blur();
+        }
+      });
+    });
+
+    el.taskTableBody.querySelectorAll(".subtask-delete").forEach(function (button) {
+      button.addEventListener("click", function (event) {
+        event.stopPropagation();
+        removeSubtask(
+          button.getAttribute("data-task-id"),
+          button.getAttribute("data-subtask-id")
+        );
+      });
+    });
+  }
+
+  function findTaskById(id) {
+    return state.tasks.find(function (task) { return task.id === id; }) || null;
+  }
+
+  function syncTaskEdited(task) {
+    if (!task || !requireVerifiedParticipantId(false)) return;
+    sync("task_edited", {
+      id: task.id,
+      title: task.title,
+      difficulty: task.difficulty,
+      urgency: task.urgency,
+      duration: task.duration,
+      routine: !!task.routine,
+      subtasks: normalizeSubtasks(task.subtasks)
+    });
+  }
+
+  function updateTaskSubtasks(taskId, updater) {
+    var updatedTask = null;
+
+    state.tasks = state.tasks.map(function (task) {
+      if (task.id !== taskId) return task;
+      updatedTask = Object.assign({}, task, {
+        subtasks: updater(normalizeSubtasks(task.subtasks))
+      });
+      return updatedTask;
+    });
+
+    saveState();
+    if (updatedTask) syncTaskEdited(updatedTask);
+    return updatedTask;
+  }
+
+  function addSubtask(taskId, rawTitle) {
+    var title = cleanSubtaskTitle(rawTitle);
+    if (!title || !findTaskById(taskId)) return;
+
+    updateTaskSubtasks(taskId, function (subtasks) {
+      return subtasks.concat([{
+        id: makeSubtaskId(),
+        title: title,
+        done: false
+      }]);
+    });
+    subtaskAddInputTaskId = taskId;
+    refreshTasksKeepSubtaskPanel(taskId);
+  }
+
+  function toggleSubtask(taskId, subtaskId) {
+    updateTaskSubtasks(taskId, function (subtasks) {
+      return subtasks.map(function (subtask) {
+        if (subtask.id !== subtaskId) return subtask;
+        return Object.assign({}, subtask, { done: !subtask.done });
+      });
+    });
+    refreshTasksKeepSubtaskPanel(taskId);
+  }
+
+  function renameSubtask(taskId, subtaskId, rawTitle) {
+    var title = cleanSubtaskTitle(rawTitle);
+    var task = findTaskById(taskId);
+    if (!task) return;
+
+    var current = normalizeSubtasks(task.subtasks).find(function (subtask) {
+      return subtask.id === subtaskId;
+    });
+    if (!current) return;
+
+    if (!title) {
+      removeSubtask(taskId, subtaskId);
+      return;
+    }
+    if (current.title === title) return;
+
+    updateTaskSubtasks(taskId, function (subtasks) {
+      return subtasks.map(function (subtask) {
+        if (subtask.id !== subtaskId) return subtask;
+        return Object.assign({}, subtask, { title: title });
+      });
+    });
+    refreshTasksKeepSubtaskPanel(taskId);
+  }
+
+  function removeSubtask(taskId, subtaskId) {
+    updateTaskSubtasks(taskId, function (subtasks) {
+      return subtasks.filter(function (subtask) { return subtask.id !== subtaskId; });
+    });
+    refreshTasksKeepSubtaskPanel(taskId);
+  }
+
   function bindScheduledActions() {
-    el.scheduledTableBody.querySelectorAll("[data-scheduled-action]").forEach(function (button) {
-      button.addEventListener("click", function () {
+    el.scheduledTableBody.querySelectorAll(".menu-item[data-scheduled-action]").forEach(function (button) {
+      button.addEventListener("click", function (event) {
+        event.stopPropagation();
+        closeAllRowMenus();
         var action = button.getAttribute("data-scheduled-action");
         var id = button.getAttribute("data-scheduled-id");
         if (!id) return;
@@ -758,6 +1219,8 @@
   function deleteTask(id) {
     var task = state.tasks.find(function (item) { return item.id === id; });
     state.tasks = state.tasks.filter(function (item) { return item.id !== id; });
+    delete openSubtaskPanelIds[id];
+    if (subtaskAddInputTaskId === id) subtaskAddInputTaskId = null;
     saveState();
     renderTasks();
     updateFact();
@@ -779,6 +1242,7 @@
       urgency: task.urgency,
       duration: task.duration,
       routine: !!task.routine,
+      subtasks: normalizeSubtasks(task.subtasks),
       scheduledFor: tomorrowISO(),
       addedAt: new Date().toISOString()
     });
@@ -813,6 +1277,7 @@
       urgency: Number(item.urgency) || 3,
       duration: Number(item.duration) || 30,
       routine: !!item.routine,
+      subtasks: normalizeSubtasks(item.subtasks),
       done: false,
       order: nextOrder(),
       slotKey: item.routine ? SLOT_KEYS.morningRoutine : SLOT_KEYS.none
@@ -869,7 +1334,14 @@
     rows.forEach(function (row) {
       row.draggable = true;
 
-      row.addEventListener("dragstart", function () {
+      row.addEventListener("dragstart", function (event) {
+        if (event.target && event.target.closest && (
+          event.target.closest(".notion-task") ||
+          event.target.closest(".actions-cell")
+        )) {
+          event.preventDefault();
+          return;
+        }
         draggedId = row.getAttribute("data-task-id");
         row.classList.add("dragging");
       });
@@ -1040,9 +1512,56 @@
       morningScore: state.readiness == null ? 0 : state.readiness,
       completedTasks: state.evening.completed,
       totalTasks: state.evening.total,
-      evening: state.evening
+      evening: state.evening,
+      embedOptions: getEveningEmbedContext()
     });
     return recs.length ? recs[0] : null;
+  }
+
+  function buildEveningSyncPayload() {
+    var review = state.eveningReview || buildEveningReview();
+    var er = window.UpeakEveningRecommendations;
+    var morningScore = state.readiness == null ? 0 : state.readiness;
+    var completed = state.evening ? Number(state.evening.completed) || 0 : 0;
+    var total = state.evening ? Number(state.evening.total) || 0 : 0;
+    var completionRate = review && review.completionRate != null
+      ? review.completionRate
+      : (total > 0 ? Math.round((completed / total) * 100) : 0);
+
+    return Object.assign({}, state.evening, {
+      readiness: morningScore,
+      dayState: state.dayState || null,
+      completionRate: completionRate,
+      decision_key: review && review.decision_key ? review.decision_key : "",
+      morning_band: er ? er.morningBand(morningScore) : "",
+      completion_band: er ? er.completionBand(completed, total) : "",
+      closedAt: state.dayClosedAt || ""
+    });
+  }
+
+  function restoreEveningForm() {
+    if (!state.evening || state.evening.date !== today) return;
+    var e = state.evening;
+    if (byId("fatigue") && e.fatigue != null) byId("fatigue").value = String(e.fatigue);
+    if (byId("eveningTaskStart") && e.taskStart != null) byId("eveningTaskStart").value = String(e.taskStart);
+    if (byId("eveningProcrastination") && e.procrastination != null) {
+      byId("eveningProcrastination").value = String(e.procrastination);
+    }
+    if (byId("eveningDetachment") && e.detachment != null) {
+      byId("eveningDetachment").value = String(e.detachment);
+    }
+    if (byId("eveningNote") && e.note) byId("eveningNote").value = e.note;
+  }
+
+  function getEveningReviewTitle() {
+    if (window.UpeakEveningRecommendations && window.UpeakEveningRecommendations.EVENING_TITLE) {
+      return window.UpeakEveningRecommendations.EVENING_TITLE;
+    }
+    return t("planner.evening.reviewTitle");
+  }
+
+  function formatReviewPlanMeta(pct) {
+    return t("planner.evening.reviewPlanMeta").replace("{pct}", String(pct));
   }
 
   function refreshEveningReview() {
@@ -1099,34 +1618,204 @@
     return html;
   }
 
-  function renderEveningRecommendationCard(rec, idx) {
-    var html = '<article class="intervention-card intervention-summary">';
-    html += '<h3 class="intervention-title">' + escapeHtml(rec.title || "Итог дня") + "</h3>";
-    html += '<p class="intervention-meta">Выполнено: ' + escapeHtml(rec.completionRate) + "%</p>";
-    html += '<p class="intervention-text">' + escapeHtml(rec.summary || "") + "</p>";
+  function normalizeTaskTitleForEmbed(title) {
+    return String(title || "").trim().toLowerCase();
+  }
 
-    if (rec.hint) {
-      html += '<p class="intervention-meta">' + escapeHtml(rec.hint) + "</p>";
+  function getEveningEmbedContext() {
+    var decisions = {};
+    if (state.evening && state.evening.date === today && state.eveningEmbedDecisions) {
+      decisions = state.eveningEmbedDecisions;
     }
-
-    if (Array.isArray(rec.actions) && rec.actions.length) {
-      html += '<p class="intervention-rec"><strong>' + escapeHtml(rec.planLabel || "Завтра стоит") + ":</strong></p>";
-      html += '<ul class="intervention-list">';
-      rec.actions.forEach(function (item) {
-        html += "<li>" + escapeHtml(item) + "</li>";
+    var morningDecisions = {};
+    if (hasMorningCheckinToday() && state.morningEmbedDecisions) {
+      morningDecisions = state.morningEmbedDecisions;
+    }
+    var existingIds = [];
+    var existingTitles = [];
+    if (Array.isArray(state.tasks)) {
+      state.tasks.forEach(function (task) {
+        if (!task) return;
+        if (task.recommendationId) existingIds.push(task.recommendationId);
+        if (task.title) {
+          var normalized = normalizeTaskTitleForEmbed(task.title);
+          if (normalized && existingTitles.indexOf(normalized) === -1) {
+            existingTitles.push(normalized);
+          }
+        }
       });
-      html += "</ul>";
+    }
+    return {
+      decisions: decisions,
+      existingIds: existingIds,
+      existingTitles: existingTitles,
+      morningDecisions: morningDecisions
+    };
+  }
+
+  function ensureEveningEmbedState() {
+    if (!state.eveningEmbedDecisions || typeof state.eveningEmbedDecisions !== "object") {
+      state.eveningEmbedDecisions = {};
+    }
+    if (!state.eveningEmbedDate) state.eveningEmbedDate = today;
+  }
+
+  function findEveningEmbedOffer(embedId) {
+    if (!window.UpeakEveningRecommendations ||
+        typeof window.UpeakEveningRecommendations.getEveningEmbeddable !== "function") {
+      return null;
+    }
+    var def = window.UpeakEveningRecommendations.getEveningEmbeddable(embedId);
+    if (!def) return null;
+    return {
+      id: def.id,
+      prompt: def.prompt || "",
+      detail: def.detail || "",
+      task: def.task ? Object.assign({}, def.task) : null
+    };
+  }
+
+  function addEveningEmbedToPlan(embedId) {
+    var offer = findEveningEmbedOffer(embedId);
+    if (!offer || !offer.task) return;
+
+    ensureEveningEmbedState();
+    var recId = "evening:" + embedId;
+    if (state.eveningEmbedDecisions[embedId] === "added" ||
+        state.eveningEmbedDecisions[embedId] === "later") {
+      return;
+    }
+    if (state.tasks.some(function (task) { return task.recommendationId === recId; })) {
+      state.eveningEmbedDecisions[embedId] = "added";
+      state.eveningEmbedDate = today;
+      saveState();
+      refreshEveningReview();
+      renderEveningReview();
+      return;
     }
 
-    if (rec.show_why && rec.why && rec.why.text) {
-      html += '<button type="button" class="intervention-why-btn" data-why-target="eveningWhy' + idx +
-        '" aria-expanded="false">Почему?</button>';
-      html += '<div class="intervention-why hidden" id="eveningWhy' + idx + '">' +
-        renderWhyHtml(rec.why) + "</div>";
-    }
+    var taskDef = offer.task;
+    var slotKey = resolveRecommendationSlotKey(taskDef);
+    var newTask = {
+      id: makeId(),
+      title: taskDef.title,
+      duration: Number(taskDef.duration) || 15,
+      difficulty: Number(taskDef.difficulty) || 5,
+      urgency: Number(taskDef.urgency) || 5,
+      routine: false,
+      done: false,
+      order: -1,
+      slotKey: slotKey,
+      recommendationId: recId,
+      subtasks: []
+    };
+    state.tasks.push(newTask);
 
-    html += "</article>";
+    distributeTasks();
+
+    state.eveningEmbedDecisions[embedId] = "added";
+    state.eveningEmbedDate = today;
+    saveState();
+    renderTasks();
+    refreshEveningReview();
+    renderEveningReview();
+    updateFact();
+
+    if (requireVerifiedParticipantId(false)) {
+      sync("evening_embed_added", {
+        embedId: embedId,
+        id: newTask.id,
+        title: newTask.title,
+        duration: newTask.duration,
+        difficulty: newTask.difficulty,
+        urgency: newTask.urgency,
+        slotKey: newTask.slotKey
+      });
+    }
+  }
+
+  function deferEveningEmbed(embedId) {
+    ensureEveningEmbedState();
+    state.eveningEmbedDecisions[embedId] = "later";
+    state.eveningEmbedDate = today;
+    saveState();
+    refreshEveningReview();
+    renderEveningReview();
+  }
+
+  function getCardFeedback(scope) {
+    var key = scope === "evening" ? "eveningCardFeedback" : "morningCardFeedback";
+    var fb = state[key];
+    if (!fb || fb.date !== today) return null;
+    return fb;
+  }
+
+  function setCardFeedback(scope, helpful, rec) {
+    var key = scope === "evening" ? "eveningCardFeedback" : "morningCardFeedback";
+    var cardId = rec && (rec.card_id || rec.decision_key || rec.mode)
+      ? (rec.card_id || rec.decision_key || rec.mode)
+      : null;
+    state[key] = {
+      date: today,
+      helpful: !!helpful,
+      decision_key: cardId,
+      completion_rate: rec && rec.completionRate != null ? rec.completionRate : null
+    };
+    saveState();
+    if (scope === "evening") renderEveningReview();
+    else renderMorningRecommendations();
+    if (requireVerifiedParticipantId(false)) {
+      sync("card_feedback", Object.assign({ scope: scope }, state[key]));
+    }
+  }
+
+  // Один раз в день (по первому рендеру карточки) шлём "показана рекомендация",
+  // чтобы в Recommendations была строка даже если человек не нажал "Да/Нет".
+  function maybeSyncRecommendationShown(scope, rec) {
+    if (!rec) return;
+    var key = scope === "evening" ? "eveningRecommendationShownDate" : "morningRecommendationShownDate";
+    if (state[key] === today) return;
+    state[key] = today;
+    saveState();
+
+    var cardId = rec.card_id || rec.decision_key || rec.mode || "";
+    if (!cardId || !requireVerifiedParticipantId(false)) return;
+
+    sync(scope === "evening" ? "evening_recommendation_shown" : "morning_recommendation_shown", {
+      card_id: cardId,
+      decision_key: rec.decision_key || cardId,
+      text: rec.text || rec.narrative || rec.summary || "",
+      matrix_version: scope === "evening" ? eveningMatrixVersion : morningMatrixVersion
+    });
+  }
+
+  function renderCardFeedback(scope, rec) {
+    var fb = getCardFeedback(scope);
+    var html = '<div class="intervention-feedback" data-feedback-scope="' + escapeAttr(scope) + '">';
+    html += '<span class="intervention-feedback-label">' + escapeHtml(t("planner.cardFeedback.prompt")) + "</span>";
+    if (fb) {
+      html += '<span class="intervention-feedback-thanks">' + escapeHtml(t("planner.cardFeedback.thanks")) + "</span>";
+    } else {
+      html += '<div class="intervention-feedback-actions">';
+      html += '<button type="button" class="btn secondary intervention-feedback-btn" data-card-feedback="yes" data-feedback-scope="' +
+        escapeAttr(scope) + '">' + escapeHtml(t("planner.cardFeedback.yes")) + "</button>";
+      html += '<button type="button" class="btn secondary intervention-feedback-btn" data-card-feedback="no" data-feedback-scope="' +
+        escapeAttr(scope) + '">' + escapeHtml(t("planner.cardFeedback.no")) + "</button>";
+      html += "</div>";
+    }
+    html += "</div>";
     return html;
+  }
+
+  function bindCardFeedback(container, rec, scope) {
+    container.querySelectorAll("[data-card-feedback]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var feedbackScope = btn.getAttribute("data-feedback-scope") || scope;
+        var value = btn.getAttribute("data-card-feedback");
+        if (!feedbackScope || !value) return;
+        setCardFeedback(feedbackScope, value === "yes", rec);
+      });
+    });
   }
 
   function getMorningEmbedContext() {
@@ -1188,7 +1877,7 @@
 
     var taskDef = offer.task;
     var slotKey = resolveRecommendationSlotKey(taskDef);
-    state.tasks.push({
+    var newTask = {
       id: makeId(),
       title: taskDef.title,
       duration: Number(taskDef.duration) || 15,
@@ -1198,8 +1887,10 @@
       done: false,
       order: -1,
       slotKey: slotKey,
-      recommendationId: recId
-    });
+      recommendationId: recId,
+      subtasks: []
+    };
+    state.tasks.push(newTask);
 
     distributeTasks();
 
@@ -1217,7 +1908,15 @@
     }
 
     if (requireVerifiedParticipantId(false)) {
-      sync("morning_embed_added", { embedId: embedId, title: taskDef.title });
+      sync("morning_embed_added", {
+        embedId: embedId,
+        id: newTask.id,
+        title: newTask.title,
+        duration: newTask.duration,
+        difficulty: newTask.difficulty,
+        urgency: newTask.urgency,
+        slotKey: newTask.slotKey
+      });
     }
   }
 
@@ -1230,8 +1929,11 @@
     renderMorningRecommendations();
   }
 
-  function renderMorningEmbedOffer(offer) {
+  function renderEmbedOffer(offer, scope) {
     if (!offer || offer.status !== "pending") return "";
+
+    var addAttr = scope === "evening" ? "data-evening-embed-add" : "data-morning-embed-add";
+    var laterAttr = scope === "evening" ? "data-evening-embed-later" : "data-morning-embed-later";
 
     var html = '<div class="intervention-embed" data-embed-id="' + escapeAttr(offer.id) + '">';
     html += '<p class="intervention-embed-text">' + escapeHtml(offer.prompt) + "</p>";
@@ -1239,16 +1941,31 @@
       html += '<p class="intervention-meta">' + escapeHtml(offer.detail) + "</p>";
     }
     html += '<div class="intervention-embed-actions">';
-    html += '<button type="button" class="btn intervention-embed-btn" data-morning-embed-add="' +
+    html += '<button type="button" class="btn intervention-embed-btn" ' + addAttr + '="' +
       escapeAttr(offer.id) + '">' + escapeHtml(t("planner.morning.embedAdd")) + "</button>";
-    html += '<button type="button" class="btn secondary intervention-embed-btn" data-morning-embed-later="' +
+    html += '<button type="button" class="btn secondary intervention-embed-btn" ' + laterAttr + '="' +
       escapeAttr(offer.id) + '">' + escapeHtml(t("planner.morning.embedLater")) + "</button>";
     html += "</div>";
     html += "</div>";
     return html;
   }
 
-  function bindMorningEmbedActions(container) {
+  function bindEmbedActions(container, scope) {
+    if (scope === "evening") {
+      container.querySelectorAll("[data-evening-embed-add]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var embedId = btn.getAttribute("data-evening-embed-add");
+          if (embedId) addEveningEmbedToPlan(embedId);
+        });
+      });
+      container.querySelectorAll("[data-evening-embed-later]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var embedId = btn.getAttribute("data-evening-embed-later");
+          if (embedId) deferEveningEmbed(embedId);
+        });
+      });
+      return;
+    }
     container.querySelectorAll("[data-morning-embed-add]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var embedId = btn.getAttribute("data-morning-embed-add");
@@ -1263,7 +1980,8 @@
     });
   }
 
-  function renderRecommendationCard(rec, idx) {
+  function renderRecommendationCard(rec, idx, whyPrefix, feedbackScope) {
+    whyPrefix = whyPrefix || "morningWhy";
     var html = '<article class="intervention-card">';
     var tone = rec.tone || "steady";
     var emoji = tone === "growth" || tone === "high" ? "🟢" : tone === "recovery" ? "🔴" : "🟡";
@@ -1272,22 +1990,44 @@
     var proof = rec.proof || rec.why;
     var showProof = rec.show_proof || rec.show_why;
 
-    if (rec.state_title) {
+    if (rec.state_title && !rec.narrative) {
       html += '<p class="intervention-state-badge">' + escapeHtml(rec.state_title) + "</p>";
     }
     html += '<p class="intervention-diagnosis">' + emoji + " " + escapeHtml(stateText) + "</p>";
+
+    if (rec.narrative) {
+      if (showProof && proof && (proof.text || (proof.sources && proof.sources.length))) {
+        html += '<button type="button" class="intervention-why-btn" data-why-target="' + whyPrefix + idx +
+          '" aria-expanded="false">Почему?</button>';
+        html += '<div class="intervention-why hidden" id="' + whyPrefix + idx + '">' +
+          renderWhyHtml(proof) + "</div>";
+      }
+      if (feedbackScope) {
+        html += renderCardFeedback(feedbackScope, rec);
+      }
+      html += "</article>";
+      return html;
+    }
 
     if (rec.decision) {
       html += '<p class="intervention-decision">' + escapeHtml(rec.decision) + "</p>";
     }
 
     if (Array.isArray(rec.actions) && rec.actions.length) {
-      html += '<p class="intervention-rec"><strong>' + escapeHtml(planLabel) + "</strong></p>";
-      html += '<ul class="intervention-list">';
-      rec.actions.forEach(function (item) {
-        html += "<li>" + escapeHtml(item) + "</li>";
-      });
-      html += "</ul>";
+      if (Array.isArray(rec.action_labels) && rec.action_labels.length === rec.actions.length) {
+        rec.actions.forEach(function (item, actionIdx) {
+          html += '<p class="intervention-rec"><strong>' +
+            escapeHtml(rec.action_labels[actionIdx]) + "</strong></p>";
+          html += '<ul class="intervention-list"><li>' + escapeHtml(item) + "</li></ul>";
+        });
+      } else {
+        html += '<p class="intervention-rec"><strong>' + escapeHtml(planLabel) + "</strong></p>";
+        html += '<ul class="intervention-list">';
+        rec.actions.forEach(function (item) {
+          html += "<li>" + escapeHtml(item) + "</li>";
+        });
+        html += "</ul>";
+      }
     }
 
     if (Array.isArray(rec.avoid) && rec.avoid.length) {
@@ -1321,10 +2061,14 @@
     }
 
     if (showProof && proof && (proof.text || (proof.sources && proof.sources.length))) {
-      html += '<button type="button" class="intervention-why-btn" data-why-target="morningWhy' + idx +
+      html += '<button type="button" class="intervention-why-btn" data-why-target="' + whyPrefix + idx +
         '" aria-expanded="false">Почему?</button>';
-      html += '<div class="intervention-why hidden" id="morningWhy' + idx + '">' +
+      html += '<div class="intervention-why hidden" id="' + whyPrefix + idx + '">' +
         renderWhyHtml(proof) + "</div>";
+    }
+
+    if (feedbackScope) {
+      html += renderCardFeedback(feedbackScope, rec);
     }
 
     html += "</article>";
@@ -1374,19 +2118,23 @@
     var embedHtml = "";
     if (recs[0] && Array.isArray(recs[0].embedOffers) && recs[0].embedOffers.length) {
       embedHtml = recs[0].embedOffers.map(function (offer) {
-        return renderMorningEmbedOffer(offer);
+        return renderEmbedOffer(offer, "morning");
       }).join("");
     }
 
     container.innerHTML =
-      '<h3 class="intervention-title">Рекомендации на сегодня' + stateLine + "</h3>" +
+      '<h3 class="intervention-title">' + escapeHtml(t("planner.morning.recommendationsTitle")) + stateLine + "</h3>" +
       recs.map(function (rec, idx) {
-        return renderRecommendationCard(rec, idx);
+        return renderRecommendationCard(rec, idx, "morningWhy", "morning");
       }).join("") +
       embedHtml;
 
     bindWhyToggles(container);
-    bindMorningEmbedActions(container);
+    bindEmbedActions(container, "morning");
+    if (recs[0]) {
+      bindCardFeedback(container, recs[0], "morning");
+      maybeSyncRecommendationShown("morning", recs[0]);
+    }
   }
 
   function renderEveningReview() {
@@ -1403,8 +2151,27 @@
     }
 
     container.classList.remove("hidden");
-    container.innerHTML = renderEveningRecommendationCard(review, 0);
+    var header = '<h3 class="intervention-title">' + escapeHtml(getEveningReviewTitle());
+    if (review.completionRate != null) {
+      header += ' <span class="intervention-meta">' +
+        escapeHtml(formatReviewPlanMeta(review.completionRate)) + "</span>";
+    }
+    header += "</h3>";
+
+    var embedHtml = "";
+    if (review.embedOffers && review.embedOffers.length) {
+      embedHtml = review.embedOffers.map(function (offer) {
+        return renderEmbedOffer(offer, "evening");
+      }).join("");
+    }
+
+    container.innerHTML = header +
+      renderRecommendationCard(review, 0, "eveningWhy", "evening") +
+      embedHtml;
     bindWhyToggles(container);
+    bindEmbedActions(container, "evening");
+    bindCardFeedback(container, review, "evening");
+    maybeSyncRecommendationShown("evening", review);
   }
 
   function bindWhyToggles(container) {
@@ -1647,6 +2414,28 @@
     return date.toISOString().slice(0, 10);
   }
 
+  function cleanSubtaskTitle(title) {
+    return String(title || "").trim().slice(0, 120);
+  }
+
+  function normalizeSubtasks(subtasks) {
+    if (!Array.isArray(subtasks)) return [];
+    return subtasks.map(function (subtask) {
+      if (!subtask || typeof subtask !== "object") return null;
+      var title = cleanSubtaskTitle(subtask.title);
+      if (!title) return null;
+      return {
+        id: subtask.id || makeSubtaskId(),
+        title: title,
+        done: !!subtask.done
+      };
+    }).filter(Boolean);
+  }
+
+  function makeSubtaskId() {
+    return "sub_" + Math.random().toString(36).slice(2, 10);
+  }
+
   function parseTaskTitle(rawTitle) {
     return { title: cleanTaskTitle(rawTitle), routine: false };
   }
@@ -1700,6 +2489,18 @@
     return Number(node && node.value ? node.value : 0);
   }
 
+  function getScale1to5(id) {
+    var node = byId(id);
+    if (!node) return NaN;
+    var raw = String(node.value || "").trim().replace(",", ".");
+    var value = Number(raw);
+    if (!Number.isFinite(value)) return NaN;
+    var rounded = Math.round(value);
+    if (rounded < 1 || rounded > 5) return NaN;
+    node.value = String(rounded);
+    return rounded;
+  }
+
   function getSleepHours() {
     var node = byId("sleepHours");
     if (!node) return 0;
@@ -1730,7 +2531,13 @@
       manualOrder: false,
       lastRoutineResetDate: "",
       morningEmbedDecisions: {},
-      morningEmbedDate: ""
+      morningEmbedDate: "",
+      eveningEmbedDecisions: {},
+      eveningEmbedDate: "",
+      morningCardFeedback: null,
+      eveningCardFeedback: null,
+      morningRecommendationShownDate: "",
+      eveningRecommendationShownDate: ""
     };
 
     try {
@@ -1763,7 +2570,10 @@
       if (slotKey === "postpone") slotKey = SLOT_KEYS.postpone;
       if (slotKey === "simplify") slotKey = SLOT_KEYS.simplify;
 
-      return Object.assign({}, task, { slotKey: slotKey });
+      return Object.assign({}, task, {
+        slotKey: slotKey,
+        subtasks: normalizeSubtasks(task.subtasks)
+      });
     });
   }
 

@@ -347,8 +347,10 @@
       "id": "evening_wind_down",
       "priority": 1,
       "prompt": "Лечь на 30–40 мин раньше",
-      "detail": "«Подготовка ко сну» · вечер · 20–30 мин · рутина на сегодня",
-      "when": { "sleep_low": true },
+      "detail": "«Подготовка ко сну» · вечер · 20–30 мин",
+      "when": {
+        "any": ["sleep_low", "recovery_day"]
+      },
       "task": {
         "title": "Подготовка ко сну",
         "duration": 25,
@@ -358,16 +360,98 @@
       }
     },
     {
-      "id": "evening_screen_free",
+      "id": "evening_tune_walk",
       "priority": 2,
-      "prompt": "15–20 мин без экрана",
-      "detail": "«Без экрана 15 мин» · утро · 15 мин",
-      "when": { "stress_high": true },
+      "prompt": "15 минут прогулки перед сном",
+      "detail": "«Прогулка перед сном» · вечер · 15 мин",
+      "when": {
+        "any": ["sleep_tune"]
+      },
       "task": {
-        "title": "Без экрана 15 мин",
+        "title": "Прогулка перед сном",
+        "duration": 15,
+        "difficulty": 3,
+        "urgency": 4,
+        "slotKey": "eveningLight"
+      }
+    },
+    {
+      "id": "evening_tune_sleep",
+      "priority": 3,
+      "prompt": "Лечь на 15 минут раньше",
+      "detail": "«Раньше ко сну» · вечер · зафиксируй время",
+      "when": {
+        "any": ["sleep_tune"]
+      },
+      "task": {
+        "title": "Раньше ко сну",
+        "duration": 15,
+        "difficulty": 4,
+        "urgency": 4,
+        "slotKey": "eveningLight"
+      }
+    },
+    {
+      "id": "phone_away",
+      "priority": 2,
+      "prompt": "Отложить телефон · 15–20 мин без экрана",
+      "detail": "«Без телефона 15 мин» · вечер · 15 мин",
+      "when": {
+        "any": ["stress_high", "recovery_day", "sleep_low"]
+      },
+      "task": {
+        "title": "Без телефона 15 мин",
         "duration": 15,
         "difficulty": 5,
         "urgency": 5,
+        "slotKey": "eveningLight"
+      }
+    },
+    {
+      "id": "walk_reset",
+      "priority": 3,
+      "prompt": "20 минут прогулки без телефона",
+      "detail": "«Прогулка без телефона» · вечер · 20 мин",
+      "when": {
+        "any": ["recovery_day", "energy_low"]
+      },
+      "task": {
+        "title": "Прогулка без телефона",
+        "duration": 20,
+        "difficulty": 4,
+        "urgency": 4,
+        "slotKey": "eveningLight"
+      }
+    },
+    {
+      "id": "breathing_pause",
+      "priority": 4,
+      "prompt": "10–15 минут снижения напряжения",
+      "detail": "«Пауза: дыхание или прогулка» · день · 15 мин",
+      "when": {
+        "any": ["stress_high", "stress_issue"]
+      },
+      "task": {
+        "title": "Пауза: дыхание или прогулка",
+        "duration": 15,
+        "difficulty": 4,
+        "urgency": 4,
+        "slotKey": "dayOps"
+      }
+    },
+    {
+      "id": "tiny_first_step",
+      "priority": 5,
+      "prompt": "Завтра первым — шаг на 5–10 минут",
+      "detail": "«Маленький первый шаг» · утро · 10 мин",
+      "when": {
+        "any": ["plateau_day", "single_issue"]
+      },
+      "task": {
+        "title": "Маленький первый шаг",
+        "duration": 10,
+        "difficulty": 3,
+        "urgency": 4,
         "slotKey": "morningFocus"
       }
     }

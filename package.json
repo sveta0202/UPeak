@@ -6,8 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node --test test/day-state.test.js",
-    "state-matrix": "node scripts/generate-state-matrix.js"
+    "test": "node --test test/day-state.test.js test/day-recommendations.test.js test/evening-recommendations.test.js test/planner-schema.test.js test/planner-schema-gs-parity.test.js",
+    "state-matrix": "node scripts/generate-state-matrix.js",
+    "recommendations-catalog": "node scripts/generate-recommendations-catalog.js"
   },
   "engines": {
     "node": ">=20"

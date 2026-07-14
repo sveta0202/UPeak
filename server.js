@@ -27,7 +27,12 @@ const ALLOWED_EVENT_TYPES = new Set([
   "scheduled_deleted",
   "plan_generated",
   "routine_activated",
-  "evening_checkout"
+  "evening_checkout",
+  "card_feedback",
+  "morning_embed_added",
+  "evening_embed_added",
+  "morning_recommendation_shown",
+  "evening_recommendation_shown"
 ]);
 
 app.use(express.json({ limit: "256kb" }));

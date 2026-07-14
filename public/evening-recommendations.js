@@ -1,15 +1,49 @@
 (function (root) {
   "use strict";
 
-  var PLAN_LABEL = "Завтра стоит";
-  var MAX_ACTIONS = 3;
+  var PLAN_LABEL = "Завтра";
+  var EVENING_TITLE = "Итог дня";
+  var MAX_EMBED_OFFERS = 1;
 
-  var EVENING_MATRIX = null;
+  // Диапазоны % выполнения плана: low [0–49], mid [50–69], high [70–100].
+  var COMPLETION_RANGES = {
+    low: { min: 0, max: 49 },
+    mid: { min: 50, max: 69 },
+    high: { min: 70, max: 100 }
+  };
 
-  function setEveningMatrix(data) {
-    EVENING_MATRIX = data && typeof data === "object" ? data : null;
-    if (EVENING_MATRIX && EVENING_MATRIX.meta && EVENING_MATRIX.meta.plan_label) {
-      PLAN_LABEL = EVENING_MATRIX.meta.plan_label;
+  var EVENING_MORNING_EMBED = {
+    evening_early_sleep: "evening_wind_down"
+  };
+
+  var SLEEP_EMBED_TITLES = ["подготовка ко сну", "раньше ко сну"];
+
+  var DECISION_MATRIX = null;
+
+  var EVIDENCE_LEVEL_LABELS = {
+    High: "Высокая",
+    Medium: "Средняя",
+    Low: "Низкая"
+  };
+
+  var RESULT_CONDITION = "Если следовать рекомендациям выше:";
+  var RESULT_DISCLAIMER = "Ориентировочная оценка, не гарантия — зависит от контекста и задач.";
+
+  function setEveningMatrix() {
+    // Legacy evening-recommendation-matrix.json — не используется в MVP-маршрутизации.
+  }
+
+  function setDecisionMatrix(data) {
+    DECISION_MATRIX = data && data.decisions ? data : null;
+    if (DECISION_MATRIX && DECISION_MATRIX.meta) {
+      if (DECISION_MATRIX.meta.plan_label) PLAN_LABEL = DECISION_MATRIX.meta.plan_label;
+      if (DECISION_MATRIX.meta.result_condition) RESULT_CONDITION = DECISION_MATRIX.meta.result_condition;
+      if (DECISION_MATRIX.meta.evening_title) {
+        EVENING_TITLE = DECISION_MATRIX.meta.evening_title;
+        if (root.UpeakEveningRecommendations) {
+          root.UpeakEveningRecommendations.EVENING_TITLE = EVENING_TITLE;
+        }
+      }
     }
   }
 
@@ -22,132 +56,265 @@
   }
 
   function completionBand(completed, total) {
-    var rate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    if (rate >= 70) return "high";
-    if (rate >= 60) return "medium";
+    if (!(Number(total) > 0)) return null;
+    var rate = Math.round((completed / total) * 100);
+    if (rate >= COMPLETION_RANGES.high.min) return "high";
+    if (rate >= COMPLETION_RANGES.mid.min) return "medium";
     return "low";
   }
 
   function completionRate(completed, total) {
-    return total > 0 ? Math.round((completed / total) * 100) : 0;
+    return Number(total) > 0 ? Math.round((completed / total) * 100) : null;
   }
 
-  function getCell(morningKey, completionKey) {
-    if (!EVENING_MATRIX || !EVENING_MATRIX.matrix) return null;
-    var row = EVENING_MATRIX.matrix[morningKey];
-    if (!row) return null;
-    return row[completionKey] || row.medium || null;
+  function isFatigueHigh(evening) {
+    return evening && Number(evening.fatigue) >= 4;
   }
 
-  function uniqueList(items, limit) {
-    var seen = {};
-    var out = [];
-    items.forEach(function (item) {
-      if (!item || seen[item]) return;
-      seen[item] = true;
-      out.push(item);
-    });
-    return out.slice(0, limit || MAX_ACTIONS);
+  function isDetachmentLow(evening) {
+    return evening && Number(evening.detachment) <= 2;
   }
 
-  function flattenPlan(plan) {
-    if (!plan) return [];
-    var items = [];
-    if (Array.isArray(plan.reduce)) items = items.concat(plan.reduce);
-    if (Array.isArray(plan.leverage)) items = items.concat(plan.leverage);
-    return items;
+  function isStartHard(evening) {
+    return evening && (Number(evening.procrastination) >= 4 || Number(evening.taskStart) >= 4);
   }
 
-  function activeModifiers(evening) {
-    if (!evening || !EVENING_MATRIX || !EVENING_MATRIX.modifiers) return [];
+  // Одна карточка = одна причина → одно решение. Приоритет сверху вниз,
+  // побеждает первый сработавший сигнал; остальное — молчит в этой карточке.
+  function resolveDecisionKey(evening, cBand) {
+    if (isFatigueHigh(evening)) return "fatigue_high";
+    if (isDetachmentLow(evening)) return "detachment_low";
+    if (isStartHard(evening)) return "start_hard";
+    if (cBand === "high") return "completion_high";
+    if (cBand === "low") return "completion_low";
+    return "completion_mid";
+  }
 
-    var mods = EVENING_MATRIX.modifiers;
-    var active = [];
+  function fillNarrative(template, completionPct) {
+    var pct = Math.round(Number(completionPct) || 0);
+    return String(template || "").replace(/\{pct\}/g, String(pct));
+  }
 
-    if (Number(evening.fatigue) >= 4 && mods.fatigue_high) {
-      active.push({ key: "fatigue_high", mod: mods.fatigue_high });
+  function formatSourceLabel(src) {
+    if (!src) return null;
+    return src.title +
+      (src.authors ? " — " + src.authors : "") +
+      (src.year ? " (" + src.year + ")" : "");
+  }
+
+  function buildProofFromEvidence(entry) {
+    if (!entry || !entry.evidence) return null;
+    var ev = entry.evidence;
+    if (!ev.basis && !ev.level && !(Array.isArray(ev.sources) && ev.sources.length)) return null;
+    var sources = Array.isArray(ev.sources) ? ev.sources.slice() : [];
+    var primary = sources.length ? sources[0] : null;
+    return {
+      text: ev.basis || "",
+      evidence_level: EVIDENCE_LEVEL_LABELS[ev.level] || ev.level || null,
+      limitations: [RESULT_DISCLAIMER],
+      sources: sources,
+      source: formatSourceLabel(primary),
+      url: primary && primary.url ? primary.url : null
+    };
+  }
+
+  // Утреннее состояние упоминается только там, где контраст с итогом дня
+  // меняет смысл (morning_variants в матрице). Иначе — молчим про утро,
+  // чтобы не ломать «одна причина → одно решение».
+  function getDecisionEntry(decisionKey, completionPct, morningBandKey) {
+    if (!DECISION_MATRIX || !DECISION_MATRIX.decisions) return null;
+    var base = DECISION_MATRIX.decisions[decisionKey];
+    if (!base) return null;
+
+    var narrativeTemplate = base.narrative;
+    if (base.morning_variants && morningBandKey && base.morning_variants[morningBandKey]) {
+      narrativeTemplate = base.morning_variants[morningBandKey];
     }
-    if (Number(evening.detachment) <= 2 && mods.detachment_low) {
-      active.push({ key: "detachment_low", mod: mods.detachment_low });
-    }
-    if (
-      (Number(evening.procrastination) >= 4 || Number(evening.taskStart) >= 4) &&
-      mods.start_hard
-    ) {
-      active.push({ key: "start_hard", mod: mods.start_hard });
-    }
 
-    active.sort(function (a, b) {
-      return (a.mod.priority || 99) - (b.mod.priority || 99);
-    });
-
-    return active;
+    return {
+      state: base.state || "Итог дня",
+      narrative_text: fillNarrative(narrativeTemplate, completionPct),
+      evidence: base.evidence ? Object.assign({}, base.evidence) : null
+    };
   }
 
-  function pickModifierAction(active, used) {
-    for (var i = 0; i < active.length; i++) {
-      var actions = active[i].mod.actions || [];
-      for (var j = 0; j < actions.length; j++) {
-        if (used[actions[j]]) continue;
-        return { action: actions[j], mod: active[i].mod };
+  function composeCardFromDecision(entry, completionPct, decisionKey) {
+    if (!entry || !entry.narrative_text) return null;
+
+    var proof = buildProofFromEvidence(entry);
+    var hasProof = !!(proof && (proof.text || (proof.sources && proof.sources.length)));
+
+    return {
+      tone: "steady",
+      narrative: entry.narrative_text,
+      state: entry.narrative_text,
+      state_title: entry.state || "Итог дня",
+      decision: "",
+      actions: [],
+      action_labels: null,
+      avoid: [],
+      benefit: "",
+      result: "",
+      result_condition: RESULT_CONDITION,
+      result_disclaimer: RESULT_DISCLAIMER,
+      proof: proof,
+      show_proof: hasProof,
+      why: proof,
+      show_why: hasProof,
+      plan_label: PLAN_LABEL,
+      completionRate: completionPct,
+      decision_key: decisionKey || "",
+      card_id: decisionKey || "",
+      title: entry.state || "Итог дня",
+      summary: entry.narrative_text,
+      text: entry.narrative_text
+    };
+  }
+
+  function normalizeTaskTitle(title) {
+    return String(title || "").trim().toLowerCase();
+  }
+
+  function isEveningEmbedDuplicated(offer, ctx) {
+    if (!offer) return true;
+
+    var title = offer.task && offer.task.title ? normalizeTaskTitle(offer.task.title) : "";
+    var existingTitles = ctx.existingTitles || [];
+
+    if (title && existingTitles.indexOf(title) !== -1) return true;
+
+    if (offer.id === "evening_early_sleep") {
+      for (var s = 0; s < SLEEP_EMBED_TITLES.length; s++) {
+        if (existingTitles.indexOf(SLEEP_EMBED_TITLES[s]) !== -1) return true;
       }
+    }
+
+    var morningId = EVENING_MORNING_EMBED[offer.id];
+    if (!morningId) return false;
+
+    var morningRecId = "morning:" + morningId;
+    if ((ctx.existingIds || []).indexOf(morningRecId) !== -1) return true;
+
+    var morningDecisions = ctx.morningDecisions || {};
+    if (morningDecisions[morningId] === "added") return true;
+
+    return false;
+  }
+
+  function embedStatus(offerId, ctx) {
+    if (ctx.decisions[offerId] === "added") return "added";
+    if (ctx.existingIds.indexOf("evening:" + offerId) !== -1) return "added";
+    if (ctx.decisions[offerId] === "later") return "later";
+    return "pending";
+  }
+
+  function matchesEmbedWhen(when, ctx) {
+    if (!when || typeof when !== "object") return true;
+    if (Array.isArray(when.any)) {
+      return when.any.some(function (key) {
+        return !!ctx[key];
+      });
+    }
+    return Object.keys(when).every(function (key) {
+      return !when[key] || !!ctx[key];
+    });
+  }
+
+  // Плашка с "unless" не показывается, если хотя бы один из перечисленных
+  // сигналов активен — даже если её собственное "when" тоже совпало.
+  // Пример: не предлагаем "первый шаг", если карточка уже про усталость.
+  function matchesEmbedUnless(unless, ctx) {
+    if (!Array.isArray(unless) || !unless.length) return true;
+    return !unless.some(function (key) {
+      return !!ctx[key];
+    });
+  }
+
+  function buildEmbedContext(evening, cBand, options) {
+    options = options || {};
+    return {
+      fatigue_high: isFatigueHigh(evening),
+      detachment_low: isDetachmentLow(evening),
+      start_hard: isStartHard(evening),
+      low_completion: cBand === "low",
+      decisions: options.decisions || {},
+      existingIds: Array.isArray(options.existingIds) ? options.existingIds : [],
+      existingTitles: Array.isArray(options.existingTitles) ? options.existingTitles : [],
+      morningDecisions: options.morningDecisions || {}
+    };
+  }
+
+  function getEveningEmbeddable(embedId) {
+    if (!DECISION_MATRIX || !Array.isArray(DECISION_MATRIX.embeddables)) return null;
+    for (var i = 0; i < DECISION_MATRIX.embeddables.length; i++) {
+      if (DECISION_MATRIX.embeddables[i].id === embedId) return DECISION_MATRIX.embeddables[i];
     }
     return null;
   }
 
-  function buildWhy(mod) {
-    if (!mod || !mod.why) return null;
-    return { text: mod.why, evidence_level: null, source: null, url: null };
+  function pickEveningEmbeddables(evening, cBand, options) {
+    if (!DECISION_MATRIX || !Array.isArray(DECISION_MATRIX.embeddables) || !evening) return [];
+
+    var ctx = buildEmbedContext(evening, cBand, options);
+    return DECISION_MATRIX.embeddables
+      .filter(function (offer) {
+        if (!offer || !offer.id) return false;
+        var status = embedStatus(offer.id, ctx);
+        if (status === "later" || status === "added") return false;
+        if (isEveningEmbedDuplicated(offer, ctx)) return false;
+        if (!matchesEmbedUnless(offer.unless, ctx)) return false;
+        return matchesEmbedWhen(offer.when, ctx);
+      })
+      .sort(function (a, b) {
+        return (a.priority || 99) - (b.priority || 99);
+      })
+      .slice(0, MAX_EMBED_OFFERS)
+      .map(function (offer) {
+        return {
+          id: offer.id,
+          prompt: offer.prompt || "",
+          detail: offer.detail || "",
+          status: embedStatus(offer.id, ctx),
+          task: offer.task ? Object.assign({}, offer.task) : null
+        };
+      });
   }
 
   function getRecommendations(input) {
     input = input || {};
-    var morningScore = input.morningScore;
     var completed = Number(input.completedTasks) || 0;
     var total = Number(input.totalTasks) || 0;
     var evening = input.evening || {};
 
-    var mBand = morningBand(morningScore);
+    // Пустой план (0 задач) — не о чём судить, карточку не показываем,
+    // если день не выделился явным сигналом усталости/старта/отключения.
     var cBand = completionBand(completed, total);
-    var cell = getCell(mBand, cBand);
-
-    if (!cell) return [];
-
-    var actions = uniqueList(flattenPlan(cell.plan), MAX_ACTIONS);
-    var used = {};
-    actions.forEach(function (a) { used[a] = true; });
-
-    var active = activeModifiers(evening);
-    var why = null;
-
-    if (actions.length < MAX_ACTIONS) {
-      var picked = pickModifierAction(active, used);
-      if (picked) {
-        actions.push(picked.action);
-        why = buildWhy(picked.mod);
-      }
+    if (cBand === null && !isFatigueHigh(evening) && !isDetachmentLow(evening) && !isStartHard(evening)) {
+      return [];
     }
 
-    if (!actions.length) return [];
+    var completionPct = completionRate(completed, total);
+    var decisionKey = resolveDecisionKey(evening, cBand);
+    var morningBandKey = morningBand(input.morningScore);
+    var entry = getDecisionEntry(decisionKey, completionPct, morningBandKey);
+    var card = composeCardFromDecision(entry, completionPct, decisionKey);
 
-    return [{
-      title: cell.title || "Итог дня",
-      completionRate: completionRate(completed, total),
-      summary: cell.summary || "",
-      hint: "",
-      actions: actions,
-      planLabel: PLAN_LABEL,
-      show_why: !!why,
-      why: why
-    }];
+    if (!card) return [];
+
+    card.embedOffers = pickEveningEmbeddables(evening, cBand, input.embedOptions || {});
+    return [card];
   }
 
   root.UpeakEveningRecommendations = {
     PLAN_LABEL: PLAN_LABEL,
-    MAX_ACTIONS: MAX_ACTIONS,
+    EVENING_TITLE: EVENING_TITLE,
     setEveningMatrix: setEveningMatrix,
+    setDecisionMatrix: setDecisionMatrix,
     morningBand: morningBand,
     completionBand: completionBand,
-    getRecommendations: getRecommendations
+    resolveDecisionKey: resolveDecisionKey,
+    getRecommendations: getRecommendations,
+    pickEveningEmbeddables: pickEveningEmbeddables,
+    getEveningEmbeddable: getEveningEmbeddable
   };
 })(typeof window !== "undefined" ? window : globalThis);

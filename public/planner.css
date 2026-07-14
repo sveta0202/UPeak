@@ -536,6 +536,35 @@ input::placeholder { color: rgba(26, 54, 93, 0.4); }
   font-size: 13px;
 }
 
+.intervention-feedback {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.intervention-feedback-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.intervention-feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.intervention-feedback-btn {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.intervention-feedback-thanks {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .intervention-embed-status {
   margin: 10px 0 0;
   font-size: 13px;
@@ -643,6 +672,202 @@ td { color: var(--text); }
   gap: 8px;
 }
 
+.task-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 180px;
+}
+
+.notion-task {
+  gap: 0;
+}
+
+.notion-task-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.notion-chevron {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(26, 54, 93, 0.58);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.notion-chevron:hover,
+.notion-chevron.is-open {
+  color: rgba(15, 32, 58, 0.92);
+  background: rgba(15, 32, 58, 0.08);
+}
+
+.notion-chevron.has-children {
+  color: rgba(15, 32, 58, 0.78);
+}
+
+.notion-chevron.is-open .notion-chevron-icon {
+  transform: rotate(90deg);
+}
+
+.notion-chevron-icon {
+  display: block;
+  transform: rotate(0deg);
+  transform-origin: center;
+  transition: transform 0.15s ease;
+}
+
+.notion-task-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-top: 2px;
+}
+
+.notion-sub-count {
+  color: rgba(15, 32, 58, 0.62);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.notion-subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px 0 2px 0;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid rgba(15, 32, 58, 0.22);
+}
+
+.notion-task--subtasks .notion-subtasks {
+  margin-left: 26px;
+}
+
+.notion-subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 2px 6px 2px 4px;
+  border-radius: 4px;
+}
+
+.notion-subtask-row:hover {
+  background: rgba(15, 32, 58, 0.07);
+}
+
+.notion-subtask-row:hover .notion-subtask-delete {
+  opacity: 1;
+}
+
+.notion-subtask-check,
+.notion-subtask-check-spacer {
+  flex: 0 0 16px;
+  width: 16px;
+}
+
+.notion-subtask-check-spacer {
+  display: inline-block;
+}
+
+.notion-subtask-input,
+.notion-subtask-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(15, 32, 58, 0.95);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 4px 0;
+}
+
+.notion-subtask-input:focus,
+.notion-subtask-add-input:focus {
+  outline: none;
+}
+
+.notion-subtask-add-input::placeholder {
+  color: rgba(15, 32, 58, 0.48);
+  font-weight: 400;
+}
+
+.notion-subtask-row-new {
+  background: rgba(15, 32, 58, 0.05);
+}
+
+.notion-subtask-delete {
+  flex: 0 0 auto;
+  opacity: 0;
+  border: none;
+  background: transparent;
+  color: rgba(15, 32, 58, 0.55);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.notion-subtask-delete:hover {
+  color: var(--err);
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.subtask-done {
+  text-decoration: line-through;
+  color: rgba(15, 32, 58, 0.42);
+}
+
+.notion-subtask-check {
+  accent-color: rgba(15, 32, 58, 0.85);
+}
+
+.task-meta-note {
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.slot-text {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+  display: inline-block;
+  max-width: 160px;
+}
+
+.subtask-row,
+.subtask-add-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subtask-row input[type="checkbox"],
+.notion-subtask-check {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
 .slot-chip {
   display: inline-block;
   border: 1px solid var(--line);
@@ -690,6 +915,11 @@ td { color: var(--text); }
 .actions-cell {
   position: relative;
   overflow: visible;
+  min-width: 56px;
+  width: 56px;
+  padding-right: 14px;
+  padding-left: 6px;
+  text-align: center;
 }
 
 .actions-cell:has(.row-menu:not(.hidden)) {
@@ -707,9 +937,13 @@ td { color: var(--text); }
   background: rgba(255, 255, 255, 0.6);
   color: var(--text);
   border-radius: 8px;
-  width: 30px;
+  width: 32px;
   height: 28px;
   cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  padding: 0;
 }
 
 .menu-btn:hover {
@@ -718,17 +952,18 @@ td { color: var(--text); }
 
 .row-menu {
   position: absolute;
-  right: 8px;
+  right: 14px;
   top: 36px;
   z-index: 1000;
-  min-width: 150px;
+  min-width: 240px;
+  max-width: 280px;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(10px);
   border-radius: 10px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 10px 30px rgba(26, 54, 93, 0.15);
 }
 
@@ -749,6 +984,27 @@ td { color: var(--text); }
 
 .menu-item:hover {
   background: rgba(26, 54, 93, 0.06);
+}
+
+.menu-item-danger {
+  color: var(--err);
+}
+
+.menu-item-danger:hover {
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.row-menu-section {
+  border-top: 1px solid var(--line);
+}
+
+.row-menu-subtasks {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.row-menu-subtasks .subtasks-menu-drop {
+  border-top: 1px solid rgba(26, 54, 93, 0.08);
 }
 @media (max-width: 900px) {
   .grid.two,
@@ -1050,23 +1306,6 @@ tr.task-row.drop-after td {
 .table-action.danger:hover {
   background: rgba(185, 28, 28, 0.14);
   border-color: rgba(185, 28, 28, 0.22);
-}
-
-.actions-cell {
-  min-width: 220px;
-}
-
-.slot-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(26, 54, 93, 0.1);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
 }
 
 @media (max-width: 900px) {
