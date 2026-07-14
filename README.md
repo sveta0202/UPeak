@@ -14,18 +14,13 @@
 
 ## Локальный запуск
 
-См. подробную инструкцию: [`docs/localhost-setup.md`](docs/localhost-setup.md).
-
-Кратко:
-
-```bash
+```
 npm install
-npm start          # http://localhost:3000
+npm start    # http://localhost:3000
 ```
 
 Страницы: `/` (лендинг), `/participate.html` (регистрация), `/planner.html`
-(планировщик), `/api/health` (проверка). Фронтенд ходит на API по относительным
-путям, поэтому проект работает и на localhost, и на Railway.
+(планировщик), `/api/health` (проверка).
 
 ## Настройка Google Sheets
 
