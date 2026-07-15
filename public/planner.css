@@ -514,6 +514,12 @@ input::placeholder { color: rgba(26, 54, 93, 0.4); }
   background: rgba(255, 255, 255, 0.62);
 }
 
+/* Внутри карточки — отдельный блок «добавить в план» сразу после «Сегодня»/«Завтра». */
+.intervention-card .intervention-embed {
+  margin-top: 14px;
+  margin-bottom: 2px;
+}
+
 .intervention-embed + .intervention-embed {
   margin-top: 10px;
 }
@@ -588,12 +594,9 @@ tr.task-row-recommendation .task-title {
 }
 
 .task-group-spacer + tr.task-row td,
-tr.task-row-recommendation + tr.task-group-spacer + tr.task-row td {
+tr.task-row-recommendation + tr.task-group-spacer + tr.task-row td,
+.task-group-spacer + tr.task-row-recommendation td {
   border-top: 2px solid rgba(124, 58, 237, 0.12);
-}
-
-tr.task-group-spacer + tr.task-row-recommendation td {
-  border-top: none;
 }
 
 .btn {

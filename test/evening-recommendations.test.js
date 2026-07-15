@@ -39,6 +39,8 @@ test("S1 fatigue_high: усталость 4, план 70% → fatigue_high + E1"
   assert.equal(cards[0].decision_key, "fatigue_high");
   assert.match(cards[0].narrative, /70%/);
   assert.match(cards[0].narrative, /восстановление/);
+  assert.ok(cards[0].actions.length >= 1);
+  assert.equal(cards[0].plan_label, "Завтра");
   var ids = cards[0].embedOffers.map(function (o) { return o.id; });
   assert.ok(ids.indexOf("evening_early_sleep") !== -1);
 });
@@ -54,7 +56,8 @@ test("S2 detachment_low: усталость 2, отключение 1, план 
 test("S3 start_hard (прокрастинация): усталость 2, прокрастинация 5, план 40% → start_hard + E3", function () {
   var cards = recs(60, 4, 10, evening(2, 2, 5, 4));
   assert.equal(cards[0].decision_key, "start_hard");
-  assert.match(cards[0].narrative, /один первый шаг/);
+  assert.match(cards[0].narrative, /начало работы/);
+  assert.ok(cards[0].actions.some(function (a) { return /один первый шаг/.test(a); }));
   var ids = cards[0].embedOffers.map(function (o) { return o.id; });
   assert.ok(ids.indexOf("evening_tiny_start") !== -1);
 });

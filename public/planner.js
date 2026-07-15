@@ -652,6 +652,7 @@
   // длительность. Рутина всегда остаётся в дне (утренний слот) и сначала резервирует
   // часть дневного бюджета. То, что не помещается в остаток бюджета (или слишком
   // сложное/длинное и при этом не срочное), уходит в «Запланированные».
+  // Задачи из рекомендаций (плашек) в расчёт не входят: слот не меняем, не убираем.
   function getTaskLoad(task) {
     return (Number(task.difficulty) || 0) + Math.ceil((Number(task.duration) || 0) / 45);
   }
@@ -669,11 +670,23 @@
     var budget = getDailyBudget(readiness, state.dayState);
     var slotKeys = [SLOT_KEYS.morningFocus, SLOT_KEYS.dayOps, SLOT_KEYS.eveningLight];
 
+    var recommendations = [];
     var routines = [];
     var regular = [];
     state.tasks.forEach(function (task) {
+      if (isRecommendationTask(task)) {
+        recommendations.push(task);
+        return;
+      }
       if (isRoutineTask(task)) routines.push(task);
       else regular.push(task);
+    });
+
+    // Рекомендации — «автоматом» в плане: слот по смыслу плашки, вне бюджета, не в scheduled.
+    recommendations.forEach(function (task) {
+      if (!task.slotKey || task.slotKey === SLOT_KEYS.none) {
+        task.slotKey = SLOT_KEYS.eveningLight;
+      }
     });
 
     var remaining = budget;
@@ -694,15 +707,6 @@
     var sorted = regular.slice().sort(comparePriority);
 
     sorted.forEach(function (task) {
-      if (task.recommendationId && String(task.recommendationId).indexOf("morning:") === 0) {
-        if (!task.slotKey || task.slotKey === SLOT_KEYS.none) {
-          task.slotKey = SLOT_KEYS.eveningLight;
-        }
-        remaining -= getTaskLoad(task);
-        kept.push(task);
-        return;
-      }
-
       var load = getTaskLoad(task);
       var isUrgent = Number(task.urgency) >= 4;
       var tooHeavy = (readiness < 45 && Number(task.difficulty) >= 4) || Number(task.duration) >= 180;
@@ -728,6 +732,7 @@
     });
 
     state.manualOrder = false;
+    kept = kept.concat(recommendations);
     kept.sort(compareTasksForDisplay);
 
     kept.forEach(function (task, idx) {
@@ -737,7 +742,7 @@
     var tomorrow = tomorrowISO();
 
     carry.forEach(function (task) {
-      if (isRoutineTask(task)) return;
+      if (isRoutineTask(task) || isRecommendationTask(task)) return;
       state.scheduled.push({
         id: task.id,
         title: task.title,
@@ -820,14 +825,41 @@
     return !!(task && task.recommendationId && String(task.recommendationId).indexOf("morning:") === 0);
   }
 
+  function isEveningRecommendationTask(task) {
+    return !!(task && task.recommendationId && String(task.recommendationId).indexOf("evening:") === 0);
+  }
+
+  function isRecommendationTask(task) {
+    return isMorningRecommendationTask(task) || isEveningRecommendationTask(task);
+  }
+
+  // Утренние по смыслу — выше списка; вечерние (лёгкие) — ниже.
+  function isTopRecommendationTask(task) {
+    if (!isRecommendationTask(task)) return false;
+    var slot = task.slotKey || SLOT_KEYS.none;
+    return slot === SLOT_KEYS.morningFocus ||
+      slot === SLOT_KEYS.morningRoutine ||
+      slot === SLOT_KEYS.dayOps;
+  }
+
+  function isBottomRecommendationTask(task) {
+    if (!isRecommendationTask(task)) return false;
+    return !isTopRecommendationTask(task);
+  }
+
   function isPinnedRecommendationTask(task) {
-    return isMorningRecommendationTask(task);
+    return isRecommendationTask(task);
   }
 
   function compareRecommendationTasks(a, b) {
-    var aMorning = a.slotKey === SLOT_KEYS.morningFocus || a.slotKey === SLOT_KEYS.morningRoutine;
-    var bMorning = b.slotKey === SLOT_KEYS.morningFocus || b.slotKey === SLOT_KEYS.morningRoutine;
-    if (aMorning !== bMorning) return aMorning ? -1 : 1;
+    var orderMap = {};
+    orderMap[SLOT_KEYS.morningRoutine] = 0;
+    orderMap[SLOT_KEYS.morningFocus] = 1;
+    orderMap[SLOT_KEYS.dayOps] = 2;
+    orderMap[SLOT_KEYS.eveningLight] = 3;
+    orderMap[SLOT_KEYS.none] = 4;
+    var slotDiff = (orderMap[a.slotKey] || 99) - (orderMap[b.slotKey] || 99);
+    if (slotDiff !== 0) return slotDiff;
     return Number(a.order || 0) - Number(b.order || 0);
   }
 
@@ -899,25 +931,35 @@
     }
 
     var sortedTasks = state.tasks.slice().sort(compareTasksForDisplay);
-    var recommendationTasks = sortedTasks.filter(isPinnedRecommendationTask).sort(compareRecommendationTasks);
+    var topRecTasks = sortedTasks.filter(isTopRecommendationTask).sort(compareRecommendationTasks);
+    var bottomRecTasks = sortedTasks.filter(isBottomRecommendationTask).sort(compareRecommendationTasks);
     var mainTasks = sortedTasks.filter(function (task) {
-      return !isPinnedRecommendationTask(task);
+      return !isRecommendationTask(task);
     });
     var htmlParts = [];
     var rowIndex = 0;
 
-    recommendationTasks.forEach(function (task) {
+    topRecTasks.forEach(function (task) {
       rowIndex += 1;
       htmlParts.push(renderTaskRow(task, rowIndex, true));
     });
 
-    if (recommendationTasks.length && mainTasks.length) {
+    if (topRecTasks.length && (mainTasks.length || bottomRecTasks.length)) {
       htmlParts.push('<tr class="task-group-spacer" aria-hidden="true"><td colspan="8"></td></tr>');
     }
 
     mainTasks.forEach(function (task) {
       rowIndex += 1;
       htmlParts.push(renderTaskRow(task, rowIndex, false));
+    });
+
+    if (bottomRecTasks.length && (mainTasks.length || topRecTasks.length)) {
+      htmlParts.push('<tr class="task-group-spacer" aria-hidden="true"><td colspan="8"></td></tr>');
+    }
+
+    bottomRecTasks.forEach(function (task) {
+      rowIndex += 1;
+      htmlParts.push(renderTaskRow(task, rowIndex, true));
     });
 
     el.taskTableBody.innerHTML = htmlParts.join("");
@@ -1704,14 +1746,14 @@
       urgency: Number(taskDef.urgency) || 5,
       routine: false,
       done: false,
-      order: -1,
+      order: nextOrder(),
       slotKey: slotKey,
       recommendationId: recId,
       subtasks: []
     };
+    // Не вызываем distributeTasks: рекомендация просто появляется в плане,
+    // распределение по состоянию её не трогает.
     state.tasks.push(newTask);
-
-    distributeTasks();
 
     state.eveningEmbedDecisions[embedId] = "added";
     state.eveningEmbedDate = today;
@@ -1885,14 +1927,14 @@
       urgency: Number(taskDef.urgency) || 5,
       routine: false,
       done: false,
-      order: -1,
+      order: nextOrder(),
       slotKey: slotKey,
       recommendationId: recId,
       subtasks: []
     };
+    // Не вызываем distributeTasks: рекомендация просто появляется в плане,
+    // распределение по состоянию её не трогает.
     state.tasks.push(newTask);
-
-    distributeTasks();
 
     state.morningEmbedDecisions[embedId] = "added";
     state.morningEmbedDate = today;
@@ -1980,34 +2022,25 @@
     });
   }
 
-  function renderRecommendationCard(rec, idx, whyPrefix, feedbackScope) {
+  function renderRecommendationCard(rec, idx, whyPrefix, feedbackScope, options) {
     whyPrefix = whyPrefix || "morningWhy";
+    options = options || {};
     var html = '<article class="intervention-card">';
     var tone = rec.tone || "steady";
     var emoji = tone === "growth" || tone === "high" ? "🟢" : tone === "recovery" ? "🔴" : "🟡";
-    var stateText = rec.state || rec.diagnosis || rec.summary || rec.today || rec.text || "";
+    // Вечер: narrative = диагноз/итог, state_title = бейдж. Утро: state = диагноз.
+    var stateText = rec.narrative
+      ? rec.narrative
+      : (rec.state || rec.diagnosis || rec.summary || rec.today || rec.text || "");
     var planLabel = rec.plan_label || "Сегодня";
     var proof = rec.proof || rec.why;
     var showProof = rec.show_proof || rec.show_why;
+    var isEveningCard = !!rec.narrative || feedbackScope === "evening";
 
-    if (rec.state_title && !rec.narrative) {
+    if (rec.state_title) {
       html += '<p class="intervention-state-badge">' + escapeHtml(rec.state_title) + "</p>";
     }
     html += '<p class="intervention-diagnosis">' + emoji + " " + escapeHtml(stateText) + "</p>";
-
-    if (rec.narrative) {
-      if (showProof && proof && (proof.text || (proof.sources && proof.sources.length))) {
-        html += '<button type="button" class="intervention-why-btn" data-why-target="' + whyPrefix + idx +
-          '" aria-expanded="false">Почему?</button>';
-        html += '<div class="intervention-why hidden" id="' + whyPrefix + idx + '">' +
-          renderWhyHtml(proof) + "</div>";
-      }
-      if (feedbackScope) {
-        html += renderCardFeedback(feedbackScope, rec);
-      }
-      html += "</article>";
-      return html;
-    }
 
     if (rec.decision) {
       html += '<p class="intervention-decision">' + escapeHtml(rec.decision) + "</p>";
@@ -2030,33 +2063,45 @@
       }
     }
 
-    if (Array.isArray(rec.avoid) && rec.avoid.length) {
-      html += '<p class="intervention-avoid-label"><strong>Избегай</strong></p>';
-      html += '<ul class="intervention-avoid-list">';
-      rec.avoid.forEach(function (item) {
-        html += "<li>" + escapeHtml(item) + "</li>";
-      });
-      html += "</ul>";
+    // Вечер: плашка сразу после «Завтра» — это и есть действие «добавить в план».
+    if (isEveningCard && options.embedHtml) {
+      html += options.embedHtml;
     }
 
-    if (rec.move_to_max) {
-      html += '<p class="intervention-move-label"><strong>Как выйти на максимум</strong></p>';
-      html += '<p class="intervention-move">' + escapeHtml(rec.move_to_max) + "</p>";
-    }
-
-    if (rec.benefit) {
-      html += '<p class="intervention-benefit-label"><strong>Почему это важно</strong></p>';
-      html += '<p class="intervention-benefit">' + escapeHtml(rec.benefit) + "</p>";
-    }
-
-    if (rec.result) {
-      html += '<p class="intervention-result-label"><strong>Потенциальный эффект</strong></p>';
-      if (rec.result_condition) {
-        html += '<p class="intervention-result-condition">' + escapeHtml(rec.result_condition) + "</p>";
+    if (!isEveningCard) {
+      if (Array.isArray(rec.avoid) && rec.avoid.length) {
+        html += '<p class="intervention-avoid-label"><strong>Избегай</strong></p>';
+        html += '<ul class="intervention-avoid-list">';
+        rec.avoid.forEach(function (item) {
+          html += "<li>" + escapeHtml(item) + "</li>";
+        });
+        html += "</ul>";
       }
-      html += '<p class="intervention-result">' + escapeHtml(rec.result) + "</p>";
-      if (rec.result_disclaimer) {
-        html += '<p class="intervention-result-disclaimer">' + escapeHtml(rec.result_disclaimer) + "</p>";
+
+      if (rec.move_to_max) {
+        html += '<p class="intervention-move-label"><strong>Как выйти на максимум</strong></p>';
+        html += '<p class="intervention-move">' + escapeHtml(rec.move_to_max) + "</p>";
+      }
+
+      if (rec.benefit) {
+        html += '<p class="intervention-benefit-label"><strong>Почему это важно</strong></p>';
+        html += '<p class="intervention-benefit">' + escapeHtml(rec.benefit) + "</p>";
+      }
+
+      if (rec.result) {
+        html += '<p class="intervention-result-label"><strong>Потенциальный эффект</strong></p>';
+        if (rec.result_condition) {
+          html += '<p class="intervention-result-condition">' + escapeHtml(rec.result_condition) + "</p>";
+        }
+        html += '<p class="intervention-result">' + escapeHtml(rec.result) + "</p>";
+        if (rec.result_disclaimer) {
+          html += '<p class="intervention-result-disclaimer">' + escapeHtml(rec.result_disclaimer) + "</p>";
+        }
+      }
+
+      // Утро: плашка после текста рекомендации, перед «Почему?» / фидбэком.
+      if (options.embedHtml) {
+        html += options.embedHtml;
       }
     }
 
@@ -2115,6 +2160,7 @@
     var stateLine = state.dayState
       ? ' <span class="intervention-meta">' + escapeHtml(getDayStateLabel(state.dayState)) + "</span>"
       : "";
+    // Плашки «в план» — внутри первой карточки, сразу после блока «Сегодня».
     var embedHtml = "";
     if (recs[0] && Array.isArray(recs[0].embedOffers) && recs[0].embedOffers.length) {
       embedHtml = recs[0].embedOffers.map(function (offer) {
@@ -2125,9 +2171,10 @@
     container.innerHTML =
       '<h3 class="intervention-title">' + escapeHtml(t("planner.morning.recommendationsTitle")) + stateLine + "</h3>" +
       recs.map(function (rec, idx) {
-        return renderRecommendationCard(rec, idx, "morningWhy", "morning");
-      }).join("") +
-      embedHtml;
+        return renderRecommendationCard(rec, idx, "morningWhy", "morning", {
+          embedHtml: idx === 0 ? embedHtml : ""
+        });
+      }).join("");
 
     bindWhyToggles(container);
     bindEmbedActions(container, "morning");
@@ -2158,6 +2205,7 @@
     }
     header += "</h3>";
 
+    // Плашки «в план» — внутри карточки, сразу после блока «Завтра», а не внизу.
     var embedHtml = "";
     if (review.embedOffers && review.embedOffers.length) {
       embedHtml = review.embedOffers.map(function (offer) {
@@ -2166,8 +2214,7 @@
     }
 
     container.innerHTML = header +
-      renderRecommendationCard(review, 0, "eveningWhy", "evening") +
-      embedHtml;
+      renderRecommendationCard(review, 0, "eveningWhy", "evening", { embedHtml: embedHtml });
     bindWhyToggles(container);
     bindEmbedActions(container, "evening");
     bindCardFeedback(container, review, "evening");
@@ -2385,10 +2432,16 @@
       return Number(a.order || 0) - Number(b.order || 0);
     }
 
-    var aPinned = isPinnedRecommendationTask(a);
-    var bPinned = isPinnedRecommendationTask(b);
-    if (aPinned !== bPinned) return aPinned ? -1 : 1;
-    if (aPinned && bPinned) return compareRecommendationTasks(a, b);
+    // Рекомендации: утренние/дневные сверху, вечерние снизу; обычные задачи — посередине.
+    var aTop = isTopRecommendationTask(a);
+    var bTop = isTopRecommendationTask(b);
+    if (aTop !== bTop) return aTop ? -1 : 1;
+    if (aTop && bTop) return compareRecommendationTasks(a, b);
+
+    var aBottom = isBottomRecommendationTask(a);
+    var bBottom = isBottomRecommendationTask(b);
+    if (aBottom !== bBottom) return aBottom ? 1 : -1;
+    if (aBottom && bBottom) return compareRecommendationTasks(a, b);
 
     var orderMap = {};
     orderMap[SLOT_KEYS.morningRoutine] = 0;

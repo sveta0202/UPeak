@@ -131,9 +131,12 @@
       narrativeTemplate = base.morning_variants[morningBandKey];
     }
 
+    var actions = Array.isArray(base.today_action) ? base.today_action.slice() : [];
+
     return {
       state: base.state || "Итог дня",
       narrative_text: fillNarrative(narrativeTemplate, completionPct),
+      today_action: actions,
       evidence: base.evidence ? Object.assign({}, base.evidence) : null
     };
   }
@@ -143,14 +146,16 @@
 
     var proof = buildProofFromEvidence(entry);
     var hasProof = !!(proof && (proof.text || (proof.sources && proof.sources.length)));
+    var actions = Array.isArray(entry.today_action) ? entry.today_action.slice() : [];
 
     return {
       tone: "steady",
       narrative: entry.narrative_text,
-      state: entry.narrative_text,
+      // state здесь — заголовок-бейдж, полный текст диагноза лежит в narrative.
+      state: entry.state || "Итог дня",
       state_title: entry.state || "Итог дня",
       decision: "",
-      actions: [],
+      actions: actions,
       action_labels: null,
       avoid: [],
       benefit: "",

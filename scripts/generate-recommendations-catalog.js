@@ -19,6 +19,41 @@ const OUT_DIR = path.join(__dirname, "..", "output");
 const OUT_CSV = path.join(OUT_DIR, "recommendations-catalog.csv");
 const OUT_SEED = path.join(OUT_DIR, "recommendations-catalog-seed.txt");
 
+// card_id остаётся техническим (для связи с событиями), title — для людей в Sheets.
+const MORNING_CARD_TITLES = {
+  emergency_recovery: "Восстановление",
+  plateau: "Плато",
+  growth: "Рост",
+  single_issue: "Одна проблема",
+  high: "Высокий ресурс"
+};
+
+const METRIC_TITLES = {
+  sleep_hours: "сон (длительность)",
+  sleep_quality: "качество сна",
+  energy: "энергия",
+  stress: "стресс"
+};
+
+const AXIS_TITLES = {
+  sleep: "сон",
+  stress: "стресс",
+  energy: "энергия"
+};
+
+const PROFILE_TITLES = {
+  sleep_tune: "подтянуть сон"
+};
+
+function morningCardTitle(decisionKey) {
+  return MORNING_CARD_TITLES[decisionKey] || decisionKey;
+}
+
+function variantTitle(baseTitle, suffix, suffixMap) {
+  var label = suffixMap[suffix] || suffix;
+  return baseTitle + " — " + label;
+}
+
 function readJson(relPath) {
   return JSON.parse(fs.readFileSync(path.join(__dirname, "..", relPath), "utf8"));
 }
@@ -32,12 +67,12 @@ function collectMorningCardRows(dayMatrix, rows) {
 
   Object.keys(decisions).forEach(function (key) {
     const base = decisions[key];
-    const title = base.state || key;
+    const title = morningCardTitle(key);
     pushRow(rows, key, "morning", "card", title);
 
     if (key === "single_issue" && base.by_issue) {
       Object.keys(base.by_issue).forEach(function (issue) {
-        pushRow(rows, key + ":" + issue, "morning", "card", title + " — " + issue);
+        pushRow(rows, key + ":" + issue, "morning", "card", variantTitle(title, issue, METRIC_TITLES));
       });
     }
 
@@ -46,17 +81,17 @@ function collectMorningCardRows(dayMatrix, rows) {
         const axisBlock = base.by_axis[axis];
         if (axis === "sleep" && axisBlock.by_metric) {
           Object.keys(axisBlock.by_metric).forEach(function (metric) {
-            pushRow(rows, key + ":" + metric, "morning", "card", title + " — " + metric);
+            pushRow(rows, key + ":" + metric, "morning", "card", variantTitle(title, metric, METRIC_TITLES));
           });
         } else {
-          pushRow(rows, key + ":" + axis, "morning", "card", title + " — " + axis);
+          pushRow(rows, key + ":" + axis, "morning", "card", variantTitle(title, axis, AXIS_TITLES));
         }
       });
     }
 
     if (key === "high" && base.by_profile) {
       Object.keys(base.by_profile).forEach(function (profile) {
-        pushRow(rows, key + ":" + profile, "morning", "card", title + " — " + profile);
+        pushRow(rows, key + ":" + profile, "morning", "card", variantTitle(title, profile, PROFILE_TITLES));
       });
     }
   });
