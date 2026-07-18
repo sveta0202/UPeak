@@ -1,13 +1,15 @@
 
 var SPREADSHEET_ID = "";
 var SHEET_NAME = "Participants";
-
+// Опционально: тот же токен, что в .env → REGISTRATION_APPS_SCRIPT_TOKEN
+var SHARED_TOKEN = "";
 
 var Q1_TEXT_RU = "Следите ли вы за своим состоянием или здоровьем?";
 var Q2_TEXT_RU = "Используете ли вы что-то для отслеживания: сна, тренировок, нагрузки, продуктивности, самочувствия?";
 var Q3_TEXT_RU = "Насколько вам знакомы такие проблемы: перегруз, усталость к концу дня, сложности с планированием, переоценка своих сил?";
 
 var HEADERS = [
+  "Participant ID",
   "Timestamp",
   "Session ID",
   "Name",
@@ -36,27 +38,44 @@ var Q1_VALID = { "yes_regularly": true, "sometimes": true, "no": true };
 var Q2_VALID = { "yes": true, "no": true };
 var Q3_VALID = { "often": true, "sometimes": true, "rarely": true, "almost_never": true };
 
-function _getSheet_() {
-  var ss;
+function _getSpreadsheet_() {
   if (SPREADSHEET_ID && SPREADSHEET_ID.length > 0) {
-    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  } else {
-    ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (!ss) {
-      throw new Error("No active spreadsheet. Set SPREADSHEET_ID or bind the script to a sheet.");
-    }
+    return SpreadsheetApp.openById(SPREADSHEET_ID);
   }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error("No active spreadsheet. Set SPREADSHEET_ID or bind the script to a sheet.");
+  }
+  return ss;
+}
+
+function _getSheet_() {
+  var ss = _getSpreadsheet_();
   var sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
   }
+  _ensureHeaders_(sheet);
+  return sheet;
+}
+
+function _ensureHeaders_(sheet) {
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
     sheet.autoResizeColumns(1, HEADERS.length);
+    return;
   }
-  return sheet;
+
+  var firstHeader = String(sheet.getRange(1, 1).getValue() || "").trim();
+  // Старый лист начинался с Timestamp — добавляем колонку Participant ID слева.
+  if (firstHeader === "Timestamp") {
+    sheet.insertColumnBefore(1);
+    sheet.getRange(1, 1).setValue("Participant ID");
+    sheet.getRange(1, 1).setFontWeight("bold");
+    _backfillMissingIds_(sheet);
+  }
 }
 
 function _jsonOutput_(obj) {
@@ -90,8 +109,6 @@ function _normalizeEmail_(value) {
 }
 
 function _parsePayload_(e) {
-  // Запрос: text/plain с JSON-телом (CORS-friendly для Apps Script).
-  // Также поддерживаем application/x-www-form-urlencoded на случай резервного режима.
   if (e && e.postData && e.postData.contents) {
     var raw = e.postData.contents;
     try {
@@ -117,19 +134,130 @@ function _readSurveyEntry_(survey, key) {
   };
 }
 
+function _formatParticipantId_(n) {
+  var s = String(Math.max(1, Math.floor(n)));
+  while (s.length < 6) s = "0" + s;
+  return "UP-" + s;
+}
+
+function _parseParticipantSeq_(value) {
+  var m = String(value || "").trim().toUpperCase().match(/^UP-(\d+)$/);
+  if (!m) return 0;
+  return Number(m[1]) || 0;
+}
+
+function _nextParticipantId_(sheet) {
+  var lastRow = sheet.getLastRow();
+  var maxSeq = 0;
+  if (lastRow >= 2) {
+    var values = sheet.getRange(2, 1, lastRow, 1).getValues();
+    for (var i = 0; i < values.length; i++) {
+      var seq = _parseParticipantSeq_(values[i][0]);
+      if (seq > maxSeq) maxSeq = seq;
+    }
+  }
+  return _formatParticipantId_(maxSeq + 1);
+}
+
+function _backfillMissingIds_(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var range = sheet.getRange(2, 1, lastRow, 1);
+  var values = range.getValues();
+  var nextSeq = 1;
+  for (var i = 0; i < values.length; i++) {
+    var seq = _parseParticipantSeq_(values[i][0]);
+    if (seq > 0) {
+      if (seq >= nextSeq) nextSeq = seq + 1;
+    }
+  }
+  var changed = false;
+  for (var j = 0; j < values.length; j++) {
+    if (!_parseParticipantSeq_(values[j][0])) {
+      values[j][0] = _formatParticipantId_(nextSeq);
+      nextSeq += 1;
+      changed = true;
+    }
+  }
+  if (changed) range.setValues(values);
+}
+
+function _findParticipantRow_(sheet, participantId) {
+  var id = String(participantId || "").trim().toUpperCase();
+  if (!id) return null;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  var values = sheet.getRange(2, 1, lastRow, HEADERS.length).getValues();
+  for (var i = 0; i < values.length; i++) {
+    if (String(values[i][0] || "").trim().toUpperCase() === id) {
+      return {
+        row: i + 2,
+        values: values[i]
+      };
+    }
+  }
+  return null;
+}
+
+function _checkToken_(token) {
+  if (!SHARED_TOKEN) return true;
+  return _sanitize_(token, 200) === SHARED_TOKEN;
+}
+
 function doGet(e) {
-  return _jsonOutput_({
-    ok: true,
-    service: "upeak-participants",
-    version: 3,
-    sheet: SHEET_NAME,
-    columns: HEADERS.length
-  });
+  try {
+    var params = (e && e.parameter) || {};
+    var action = _sanitize_(params.action, 32).toLowerCase();
+
+    if (action === "lookup") {
+      if (!_checkToken_(params.proxyToken)) {
+        return _jsonOutput_({ ok: false, error: "unauthorized", exists: false });
+      }
+      var id = _sanitize_(params.id, 40).toUpperCase();
+      if (!id) {
+        return _jsonOutput_({ ok: false, error: "id_required", exists: false });
+      }
+      var sheet = _getSheet_();
+      var found = _findParticipantRow_(sheet, id);
+      if (!found) {
+        return _jsonOutput_({ ok: true, exists: false, id: id });
+      }
+      return _jsonOutput_({
+        ok: true,
+        exists: true,
+        id: id,
+        participant: {
+          participantId: id,
+          name: found.values[3] || "",
+          language: found.values[9] || "",
+          status: found.values[22] || ""
+        }
+      });
+    }
+
+    return _jsonOutput_({
+      ok: true,
+      service: "upeak-participants",
+      version: 4,
+      sheet: SHEET_NAME,
+      columns: HEADERS.length
+    });
+  } catch (err) {
+    return _jsonOutput_({
+      ok: false,
+      error: "internal_error",
+      message: String(err && err.message ? err.message : err)
+    });
+  }
 }
 
 function doPost(e) {
   try {
     var data = _parsePayload_(e) || {};
+
+    if (!_checkToken_(data.proxyToken)) {
+      return _jsonOutput_({ ok: false, error: "unauthorized" });
+    }
 
     var sessionId = _sanitize_(data.sessionId, 64);
     var name = _sanitize_(data.name, 120);
@@ -164,7 +292,6 @@ function doPost(e) {
       return _jsonOutput_({ ok: false, error: "survey_q3_required" });
     }
 
-    // Derive contactType/contactValue. Prefer client-provided values, else infer.
     var contactType = _sanitize_(data.contactType, 16);
     var contactValue = _sanitize_(data.contactValue, 200);
     if (!contactType) {
@@ -180,7 +307,9 @@ function doPost(e) {
     }
 
     var sheet = _getSheet_();
+    var participantId = _nextParticipantId_(sheet);
     var row = [
+      participantId,
       new Date(),
       sessionId,
       name,
@@ -206,7 +335,7 @@ function doPost(e) {
     ];
     sheet.appendRow(row);
 
-    return _jsonOutput_({ ok: true });
+    return _jsonOutput_({ ok: true, participantId: participantId });
   } catch (err) {
     return _jsonOutput_({
       ok: false,
@@ -218,5 +347,6 @@ function doPost(e) {
 
 function setup() {
   var sheet = _getSheet_();
+  _backfillMissingIds_(sheet);
   Logger.log("Sheet ready: " + sheet.getName() + " with " + sheet.getLastRow() + " rows.");
 }

@@ -841,6 +841,7 @@
   function buildEmbedContext(dayState, options) {
     options = options || {};
     var sleepWorst = axisWorstValue(dayState, "sleep");
+    var sleepHours = getMetricValue(dayState, "sleep_hours");
     var stressValue = getMetricValue(dayState, "stress");
     var energyValue = getMetricValue(dayState, "energy");
     var energyWorst = axisWorstValue(dayState, "energy");
@@ -848,6 +849,9 @@
 
     return {
       sleep_low: sleepWorst !== null && sleepWorst <= 2,
+      // Есть запас по длительности сна (< ~7.5 ч). При уже максимальных часах
+      // «лечь раньше» не предлагаем — только качество (прогулка и т.п.).
+      sleep_hours_room: sleepHours !== null && sleepHours < 5,
       stress_high: stressValue !== null && stressValue <= 2,
       energy_low: energyWorst !== null && energyWorst <= 2,
       recovery_day: decisionKey === "emergency_recovery" || dayState.state === "recovery",

@@ -381,7 +381,8 @@
       "prompt": "Лечь на 15 минут раньше",
       "detail": "«Раньше ко сну» · вечер · зафиксируй время",
       "when": {
-        "any": ["sleep_tune"]
+        "sleep_tune": true,
+        "sleep_hours_room": true
       },
       "task": {
         "title": "Раньше ко сну",

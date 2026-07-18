@@ -653,8 +653,13 @@
   // часть дневного бюджета. То, что не помещается в остаток бюджета (или слишком
   // сложное/длинное и при этом не срочное), уходит в «Запланированные».
   // Задачи из рекомендаций (плашек) в расчёт не входят: слот не меняем, не убираем.
+  //
+  // Вес = сложность + ceil(мин/45) × (сложность/3).
+  // Длительность масштабируется сложностью: лёгкая 90-мин ≈ 1.7, тяжёлая 90-мин ≈ 8.3.
   function getTaskLoad(task) {
-    return (Number(task.difficulty) || 0) + Math.ceil((Number(task.duration) || 0) / 45);
+    var difficulty = Number(task.difficulty) || 0;
+    var durationUnits = Math.ceil((Number(task.duration) || 0) / 45);
+    return difficulty + durationUnits * (difficulty / 3);
   }
 
   function getRoutineBudgetLoad(task, readiness) {

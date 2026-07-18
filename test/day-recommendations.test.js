@@ -92,6 +92,18 @@ test("card_id: high + сон ниже идеала → high:sleep_tune", functio
   assert.equal(cards[0].card_id, "high:sleep_tune");
 });
 
+test("high: 8ч сна + качество 4 → только прогулка, без «раньше ко сну»", function () {
+  var ds = morningFromCheckin(8, 4, 2, 1);
+  assert.equal(ds.state, "high_performance");
+  assert.equal(ds.metrics.sleep_hours, 5);
+  assert.equal(dr.resolveDecisionKey(ds), "high");
+
+  var cards = dr.getRecommendations(ds);
+  var embedIds = (cards[0].embedOffers || []).map(function (o) { return o.id; });
+  assert.ok(embedIds.indexOf("evening_tune_walk") !== -1);
+  assert.equal(embedIds.indexOf("evening_tune_sleep"), -1);
+});
+
 test("card_id: high без пробелов в сне → просто high", function () {
   var ds = dayState.computeDayStateFromMetrics({ sleep_hours: 5, sleep_quality: 5, energy: 5, stress: 5 });
   var cards = dr.getRecommendations(ds);

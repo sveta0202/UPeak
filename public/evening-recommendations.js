@@ -141,6 +141,19 @@
     };
   }
 
+  function cardToneFromDecisionKey(decisionKey) {
+    if (decisionKey === "completion_high") return "high";
+    if (
+      decisionKey === "completion_low" ||
+      decisionKey === "fatigue_high" ||
+      decisionKey === "detachment_low" ||
+      decisionKey === "start_hard"
+    ) {
+      return "recovery";
+    }
+    return "steady";
+  }
+
   function composeCardFromDecision(entry, completionPct, decisionKey) {
     if (!entry || !entry.narrative_text) return null;
 
@@ -149,7 +162,7 @@
     var actions = Array.isArray(entry.today_action) ? entry.today_action.slice() : [];
 
     return {
-      tone: "steady",
+      tone: cardToneFromDecisionKey(decisionKey),
       narrative: entry.narrative_text,
       // state здесь — заголовок-бейдж, полный текст диагноза лежит в narrative.
       state: entry.state || "Итог дня",

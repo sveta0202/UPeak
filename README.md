@@ -14,6 +14,8 @@
 
 ## Локальный запуск
 
+См. подробную инструкцию: [`docs/localhost-setup.md`](docs/localhost-setup.md).
+
 ```
 npm install
 npm start    # http://localhost:3000
@@ -24,7 +26,8 @@ npm start    # http://localhost:3000
 
 ## Настройка Google Sheets
 
-См. [`docs/google-sheets-setup.md`](docs/google-sheets-setup.md).
+См. [`docs/google-sheets-setup.md`](docs/google-sheets-setup.md)
+(деплой `CodeREG.gs` / `CodeAPP.gs`, выдача `UP-…` ID, lookup).
 
 В проекте две таблицы со своими Apps Script деплоями:
 
