@@ -136,6 +136,9 @@
     statusBanner.classList.add("is-" + kind);
     statusBanner.setAttribute("data-i18n", key);
     statusBanner.textContent = t(key, fallback);
+    if (kind === "success" && typeof statusBanner.scrollIntoView === "function") {
+      statusBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   }
 
   function hideBanner() {
@@ -173,6 +176,14 @@
     var isEn = lang === "en";
     if (telegramField) telegramField.style.display = isEn ? "none" : "";
     if (emailField) emailField.style.display = isEn ? "" : "none";
+    if (telegramInput) {
+      if (isEn) telegramInput.removeAttribute("required");
+      else telegramInput.setAttribute("required", "required");
+    }
+    if (emailInput) {
+      if (isEn) emailInput.setAttribute("required", "required");
+      else emailInput.removeAttribute("required");
+    }
     // Clear errors on the hidden field so they don't linger on next language switch.
     if (isEn) {
       setFieldError(telegramInput, telegramError, null);
@@ -209,15 +220,19 @@
 
     if (lang === "en") {
       var emailRaw = normalizeEmail(emailInput && emailInput.value);
-      if (emailRaw) {
-        if (!EMAIL_RE.test(emailRaw) || emailRaw.length > 120) {
-          setFieldError(emailInput, emailError, "participate.error.email", "Please enter a valid email address");
-          ok = false;
-        }
+      if (!emailRaw) {
+        setFieldError(emailInput, emailError, "participate.error.emailRequired", "Please enter your email");
+        ok = false;
+      } else if (!EMAIL_RE.test(emailRaw) || emailRaw.length > 120) {
+        setFieldError(emailInput, emailError, "participate.error.email", "Please enter a valid email address");
+        ok = false;
       }
     } else {
       var tgRaw = (telegramInput && telegramInput.value || "").trim();
-      if (tgRaw) {
+      if (!tgRaw) {
+        setFieldError(telegramInput, telegramError, "participate.error.telegramRequired", "Укажите Telegram (@username)");
+        ok = false;
+      } else {
         var tgBare = tgRaw.charAt(0) === "@" ? tgRaw.slice(1) : tgRaw;
         if (!TELEGRAM_USERNAME_RE.test(tgBare)) {
           setFieldError(telegramInput, telegramError, "participate.error.telegram", "Имя пользователя Telegram содержит недопустимые символы");
@@ -361,6 +376,9 @@
             statusBanner.appendChild(baseLine);
             statusBanner.appendChild(idLine);
             statusBanner.appendChild(hintLine);
+            if (typeof statusBanner.scrollIntoView === "function") {
+              statusBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
           }
 
           form.reset();

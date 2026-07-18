@@ -159,7 +159,7 @@
             display: none;
             padding: 14px 16px;
             border-radius: 12px;
-            margin-bottom: 16px;
+            margin-top: 16px;
             font-size: 14px;
             line-height: 1.4;
         }
@@ -283,8 +283,6 @@
         </div>
 
         <div class="form-card p-6 md:p-8">
-            <div id="statusBanner" class="status-banner" role="status" aria-live="polite"></div>
-
             <form id="participateForm"
                   novalidate
                   data-testid="participate-form">
@@ -403,7 +401,7 @@
                 <div class="mb-6" id="telegramField">
                     <label class="form-label" for="telegramInput">
                         <span data-i18n="participate.field.telegram">Telegram</span>
-                        <span class="text-muted text-xs ml-1" data-i18n="participate.optional">(необязательно)</span>
+                        <span class="accent-red">*</span>
                     </label>
                     <input
                         id="telegramInput"
@@ -411,18 +409,19 @@
                         type="text"
                         autocomplete="off"
                         maxlength="64"
+                        required
                         class="form-input"
                         placeholder="@username"
                         data-i18n-placeholder="participate.placeholder.telegram"
                         data-testid="participate-telegram" />
                     <p class="form-hint" data-i18n="participate.hint.telegram">Можно с @ или без — например, @james123 или james123</p>
-                    <p class="form-error" id="telegramError" data-i18n="participate.error.telegram" data-testid="participate-telegram-error">Имя пользователя Telegram содержит недопустимые символы</p>
+                    <p class="form-error" id="telegramError" data-i18n="participate.error.telegram" data-testid="participate-telegram-error">Укажите Telegram (@username)</p>
                 </div>
 
                 <div class="mb-6" id="emailField" style="display:none">
                     <label class="form-label" for="emailInput">
                         <span data-i18n="participate.field.email">Email</span>
-                        <span class="text-muted text-xs ml-1" data-i18n="participate.optional">(optional)</span>
+                        <span class="accent-red">*</span>
                     </label>
                     <input
                         id="emailInput"
@@ -449,6 +448,8 @@
                     Отправляя форму, вы соглашаетесь с тем, что мы используем эти данные только для связи по эксперименту.
                 </p>
             </form>
+
+            <div id="statusBanner" class="status-banner" role="status" aria-live="polite"></div>
         </div>
     </main>
 

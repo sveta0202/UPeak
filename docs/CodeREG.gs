@@ -276,6 +276,13 @@ function doPost(e) {
     if (phoneDigits.length < 7) {
       return _jsonOutput_({ ok: false, error: "phone_invalid" });
     }
+    if (language === "en") {
+      if (!email) {
+        return _jsonOutput_({ ok: false, error: "email_required" });
+      }
+    } else if (!telegram) {
+      return _jsonOutput_({ ok: false, error: "telegram_required" });
+    }
 
     var survey = data.survey;
     var q1 = _readSurveyEntry_(survey, "q1");
