@@ -633,20 +633,64 @@
     };
 
     state.eveningReview = buildEveningReview();
-
     state.dayClosedAt = new Date().toISOString();
+
+    var checkoutPayload = buildEveningSyncPayload();
+    var canSync = requireVerifiedParticipantId(false);
+
+    // После закрытия дня оставляем только задачи на завтра (scheduled),
+    // остальное локальное состояние дня сбрасываем.
+    resetAfterDayClose();
     saveState();
+    renderTasks();
+    renderScheduled();
     updateFact();
+    updateReadiness();
     updateDayStatus();
+    refreshInterventionBlocks();
     renderEveningReview();
 
-    if (el.eveningReview) {
-      el.eveningReview.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (canSync) {
+      sync("evening_checkout", checkoutPayload);
     }
-
-    if (!requireVerifiedParticipantId()) return;
-    sync("evening_checkout", buildEveningSyncPayload());
   });
+
+  function clearDayFormFields() {
+    [
+      "sleepHours",
+      "sleepQuality",
+      "energy",
+      "stress",
+      "morningNote",
+      "fatigue",
+      "eveningTaskStart",
+      "eveningProcrastination",
+      "eveningDetachment",
+      "eveningNote"
+    ].forEach(function (id) {
+      var node = byId(id);
+      if (node) node.value = "";
+    });
+  }
+
+  // После «Закрыть день»: чистый день, в плане только «на завтра».
+  function resetAfterDayClose() {
+    state.tasks = [];
+    state.morning = null;
+    state.evening = null;
+    state.eveningReview = null;
+    state.dayClosedAt = "";
+    state.manualOrder = false;
+    resetMorningDerivedState();
+    state.eveningEmbedDecisions = {};
+    state.eveningEmbedDate = "";
+    state.eveningCardFeedback = null;
+    state.eveningRecommendationShownDate = "";
+    state.scheduled = (Array.isArray(state.scheduled) ? state.scheduled : []).filter(function (item) {
+      return item && item.scheduledFor && item.scheduledFor > today;
+    });
+    clearDayFormFields();
+  }
 
   // Распределение по состоянию: учитываем срочность (приоритет), важность, сложность и
   // длительность. Рутина всегда остаётся в дне (утренний слот) и сначала резервирует
