@@ -1,7 +1,7 @@
 # Реляционная модель данных планировщика (Google Sheets)
 
 Схема и ручной runbook для перехода от плоского лога `PlannerEvents` к
-6 связанным листам, готовым к переезду на Postgres/SQLite без переделок.
+8 связанным листам и справочнику, готовым к переезду на Postgres/SQLite без переделок.
 
 ## Зачем
 
@@ -20,6 +20,9 @@ flowchart TD
     Days --> EveningCheckin["Evening_Checkin (1:1)"]
     Days --> Tasks["Tasks (1:many)"]
     Days --> Recommendations["Recommendations (1:2, утро+вечер)"]
+    Days --> PlanRuns["Plan_Runs (1:many)"]
+    PlanRuns --> PlanItems["Plan_Items (1:many)"]
+    PlanItems -.->|"task_id"| Tasks
     Recommendations -.->|"card_id (справочно)"| Catalog["Recommendations_Catalog (статичный справочник)"]
 ```
 
@@ -33,6 +36,8 @@ flowchart TD
 | `Evening_Checkin` | `evening_checkin_id` (= `day_id`) | усталость/прокрастинация/трудность старта/отключение |
 | `Tasks` | `task_id` (клиентский id) | одна строка на задачу; статус active/scheduled/deleted |
 | `Recommendations` | `recommendation_id` = `{day_id}::{scope}` | одна строка на (день, утро/вечер): card_id, текст-снимок, helpful |
+| `Plan_Runs` | `plan_run_id` | одно нажатие «Распределить»: входной объём, сколько оставлено/перенесено, readiness |
+| `Plan_Items` | `plan_item_id` = `{plan_run_id}::{task_id}` | снимок решения алгоритма по каждой задаче и её последующее выполнение |
 | `Recommendations_Catalog` | `card_id` | статичный справочник card_id → человекочитаемое название |
 
 Полные списки колонок — `SHEET_COLUMNS` в `lib/planner-schema.js` (и
@@ -55,8 +60,8 @@ flowchart TD
 |---|---|
 | `morning_checkin` | `Days` (`morning_checkin_id`) + `Morning_Checkin` |
 | `evening_checkout` | `Days` (`evening_checkin_id`, `completion_percent`, `evening_recommendation_id`) + `Evening_Checkin` + `Recommendations` (scope=evening, card_id) |
-| `task_created` / `task_edited` / `task_toggled` / `task_deleted` / `task_reordered` / `scheduled_added` / `scheduled_restored` / `scheduled_deleted` | upsert строки в `Tasks` по `task_id` (для `*_deleted` — не удаляем строку, ставим `status=deleted`) |
-| `plan_generated` | массовый upsert по снимку `tasks`+`scheduled` из payload |
+| `task_created` / `task_edited` / `task_toggled` / `task_deleted` / `task_reordered` / `scheduled_added` / `scheduled_restored` / `scheduled_deleted` | upsert строки в `Tasks` по `task_id` (для `*_deleted` — не удаляем строку, ставим `status=deleted`); `task_toggled` также обновляет `completed` во всех связанных `Plan_Items` |
+| `plan_generated` | массовый upsert `Tasks` + новый снимок в `Plan_Runs` и `Plan_Items` |
 | `morning_embed_added` / `evening_embed_added` | upsert `Tasks` (`source=embed_suggestion`, `embed_id`) |
 | `card_feedback` | upsert `Recommendations` (`helpful`, `feedback_at`) + `Days` |
 | `morning_recommendation_shown` / `evening_recommendation_shown` | upsert `Recommendations` (`card_id`, `recommendation_text`, `matrix_version`) + `Days`. Отправляются клиентом (`public/planner.js`) один раз в день при первом рендере карточки — без этого `Recommendations` была бы неполной для дней, где человек не ответил «Да/Нет» |
@@ -115,7 +120,8 @@ flowchart TD
    чек-ин → оценка «помогла рекомендация».
 5. В копии таблицы проверьте: появились листы `Users`, `Days`,
    `Morning_Checkin`, `Evening_Checkin`, `Tasks`, `Recommendations`,
-   `Recommendations_Catalog` (последний сразу заполнен справочником);
+   `Plan_Runs`, `Plan_Items`, `Recommendations_Catalog` (последний сразу
+   заполнен справочником);
    строки в них соответствуют тому, что вы сделали в интерфейсе.
 6. В редакторе Apps Script выберите функцию `migrateLegacyEvents` в
    выпадающем списке → **Run**. Откройте **Executions** (или View → Logs) —

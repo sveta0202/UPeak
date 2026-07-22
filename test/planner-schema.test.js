@@ -15,6 +15,47 @@ test("buildRecommendationId: day_id + scope", function () {
   assert.equal(schema.buildRecommendationId(dayId, "evening"), dayId + "::evening");
 });
 
+test("buildPlanRunRows: сохраняет оставленные, перенесённые и рекомендованные задачи", function () {
+  var dayId = schema.buildDayId("UP-000007", "2026-07-14");
+  var snapshot = schema.buildPlanRunRows(dayId, "UP-000007", {
+    planRunId: "plan-1",
+    readiness: 72,
+    movedToScheduled: 1,
+    movedTaskIds: ["t2"],
+    tasks: [
+      { id: "t1", title: "Отчёт", slotKey: "morningFocus", order: 0, difficulty: 4, urgency: 5, duration: 60 },
+      { id: "r1", title: "Прогулка", recommendationId: "morning:walk", slotKey: "eveningLight", order: 1, done: true }
+    ],
+    scheduled: [{ id: "t2", title: "Исследование", difficulty: 3, urgency: 2, duration: 90 }]
+  }, NOW);
+
+  assert.equal(snapshot.run.plan_run_id, "plan-1");
+  assert.equal(snapshot.run.input_task_count, 3);
+  assert.equal(snapshot.run.kept_task_count, 2);
+  assert.equal(snapshot.run.moved_to_scheduled_count, 1);
+  assert.equal(snapshot.run.recommendation_task_count, 1);
+  assert.equal(snapshot.items.length, 3);
+  assert.equal(snapshot.items.find(function (item) { return item.task_id === "t2"; }).decision, "postponed");
+  assert.equal(snapshot.items.find(function (item) { return item.task_id === "r1"; }).source, "embed_suggestion");
+  assert.equal(snapshot.items.find(function (item) { return item.task_id === "r1"; }).completed_at_generation, "TRUE");
+});
+
+test("buildPlanRunRows: старый payload определяет перенесённые задачи по хвосту scheduled", function () {
+  var dayId = schema.buildDayId("UP-000007", "2026-07-14");
+  var snapshot = schema.buildPlanRunRows(dayId, "UP-000007", {
+    movedToScheduled: 1,
+    tasks: [{ id: "t1", title: "Оставлена" }],
+    scheduled: [
+      { id: "old", title: "Была запланирована раньше" },
+      { id: "moved", title: "Перенесена сейчас" }
+    ]
+  }, NOW);
+
+  assert.equal(snapshot.items.length, 2);
+  assert.equal(snapshot.items[1].task_id, "moved");
+  assert.equal(snapshot.items[1].decision, "postponed");
+});
+
 test("toBoolCell: true/false/строки/undefined", function () {
   assert.equal(schema.toBoolCell(true), "TRUE");
   assert.equal(schema.toBoolCell(false), "FALSE");

@@ -585,7 +585,16 @@
   });
 
   byId("planBtn").addEventListener("click", function () {
+    var beforeTaskIds = state.tasks.map(function (task) { return task.id; });
     var moved = distributeTasks();
+    var keptTaskIds = {};
+    state.tasks.forEach(function (task) { keptTaskIds[task.id] = true; });
+    var movedTaskIds = beforeTaskIds.filter(function (taskId) {
+      return !keptTaskIds[taskId] && state.scheduled.some(function (task) {
+        return task && task.id === taskId;
+      });
+    });
+    var planRunId = "plan_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
     saveState();
     renderTasks();
     renderScheduled();
@@ -594,8 +603,10 @@
     if (!requireVerifiedParticipantId()) return;
 
     sync("plan_generated", {
+      planRunId: planRunId,
       readiness: state.readiness,
       movedToScheduled: moved,
+      movedTaskIds: movedTaskIds,
       tasks: state.tasks,
       scheduled: state.scheduled
     });
@@ -673,19 +684,13 @@
     });
   }
 
-  // После «Закрыть день»: чистый день, в плане только «на завтра».
+  // После «Закрыть день»: задачи дня сбрасываем, оставляем только «на завтра».
+  // Вечерний чек-ин и eveningReview сохраняем — иначе карточка итога не покажется.
   function resetAfterDayClose() {
     state.tasks = [];
     state.morning = null;
-    state.evening = null;
-    state.eveningReview = null;
-    state.dayClosedAt = "";
     state.manualOrder = false;
     resetMorningDerivedState();
-    state.eveningEmbedDecisions = {};
-    state.eveningEmbedDate = "";
-    state.eveningCardFeedback = null;
-    state.eveningRecommendationShownDate = "";
     state.scheduled = (Array.isArray(state.scheduled) ? state.scheduled : []).filter(function (item) {
       return item && item.scheduledFor && item.scheduledFor > today;
     });

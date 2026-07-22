@@ -23,6 +23,9 @@ var EXPORT_NAMES = [
   "RECOMMENDATIONS_CATALOG_SEED",
   "buildDayId",
   "buildRecommendationId",
+  "buildPlanRunId",
+  "isRecommendationPlanTask",
+  "buildPlanRunRows",
   "toBoolCell",
   "compactPatch",
   "statusForEvent",
@@ -84,6 +87,25 @@ test("docs/CodeAPP.gs: buildDayId / buildRecommendationId идентичны", f
   assert.equal(gs.buildDayId("UP-1", "2026-07-14"), schema.buildDayId("UP-1", "2026-07-14"));
   var dayId = schema.buildDayId("UP-1", "2026-07-14");
   assert.equal(gs.buildRecommendationId(dayId, "evening"), schema.buildRecommendationId(dayId, "evening"));
+});
+
+test("docs/CodeAPP.gs: buildPlanRunRows идентичен", function () {
+  var dayId = schema.buildDayId("UP-1", "2026-07-14");
+  var payload = {
+    planRunId: "plan-1",
+    readiness: 72,
+    movedToScheduled: 1,
+    movedTaskIds: ["t2"],
+    tasks: [
+      { id: "t1", title: "Основная", slotKey: "morningFocus", order: 0, difficulty: 4, urgency: 5, duration: 60 },
+      { id: "r1", title: "Прогулка", recommendationId: "morning:walk", slotKey: "eveningLight", order: 1 }
+    ],
+    scheduled: [{ id: "t2", title: "Перенесённая", difficulty: 3, urgency: 2, duration: 90 }]
+  };
+  assert.deepEqual(
+    gs.buildPlanRunRows(dayId, "UP-1", payload, NOW),
+    schema.buildPlanRunRows(dayId, "UP-1", payload, NOW)
+  );
 });
 
 test("docs/CodeAPP.gs: toBoolCell / compactPatch / statusForEvent идентичны", function () {

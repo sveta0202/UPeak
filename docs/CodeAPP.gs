@@ -91,8 +91,59 @@ function _getSheet_() {
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
     sheet.autoResizeColumns(1, HEADERS.length);
+  } else {
+    _upgradePlannerEventsSchema_(sheet);
   }
   return sheet;
+}
+
+// Обновляет старый PlannerEvents (26 колонок) до текущей схемы (29 колонок)
+// без удаления истории. В старой версии после Plan-Fact сразу шли User Agent,
+// IP и Raw Payload; теперь перед ними добавлены три поля рекомендаций.
+function _upgradePlannerEventsSchema_(sheet) {
+  var lastColumn = sheet.getLastColumn();
+  var headers = lastColumn > 0
+    ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+    : [];
+  var hasCurrentFeedbackColumns =
+    String(headers[23] || "").trim() === "Feedback Scope" &&
+    String(headers[24] || "").trim() === "Recommendation ID" &&
+    String(headers[25] || "").trim() === "Helpful";
+  var isLegacySchema =
+    String(headers[0] || "").trim() === "Timestamp (server)" &&
+    String(headers[8] || "").trim() === "Event Type" &&
+    String(headers[23] || "").trim() === "User Agent" &&
+    String(headers[24] || "").trim() === "IP (proxy)" &&
+    String(headers[25] || "").trim() === "Raw Payload";
+
+  if (isLegacySchema) {
+    sheet.insertColumnsBefore(24, 3);
+    hasCurrentFeedbackColumns = true;
+  }
+
+  if (!hasCurrentFeedbackColumns && lastColumn > 0) {
+    throw new Error(
+      "Неизвестная схема PlannerEvents. Создайте копию таблицы и проверьте заголовки перед обновлением."
+    );
+  }
+
+  if (sheet.getMaxColumns() < HEADERS.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), HEADERS.length - sheet.getMaxColumns());
+  }
+
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  sheet.setFrozenRows(1);
+  sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
+  _fixPlannerEventsNumberFormats_(sheet);
+}
+
+// Старые числовые колонки могли быть отформатированы как даты, из-за чего
+// значения 0/1/2/… отображались как 30.12.1899/31.12.1899/01.01.1900.
+function _fixPlannerEventsNumberFormats_(sheet) {
+  var dataRows = Math.max(sheet.getMaxRows() - 1, 1);
+  sheet.getRange(2, 10, dataRows, 4).setNumberFormat("0.##"); // readiness + counts
+  sheet.getRange(2, 16, dataRows, 3).setNumberFormat("0.##"); // difficulty/urgency/duration
+  sheet.getRange(2, 21, dataRows, 1).setNumberFormat("0.##"); // order
 }
 
 function _jsonOutput_(obj) {
@@ -267,7 +318,16 @@ function doPost(e) {
 
 function setup() {
   var sheet = _getSheet_();
-  Logger.log("Planner sheet ready: " + sheet.getName() + " with " + sheet.getLastRow() + " rows.");
+  _getUsersSheet_();
+  _getDaysSheet_();
+  _getMorningCheckinSheet_();
+  _getEveningCheckinSheet_();
+  _getTasksSheet_();
+  _getRecommendationsSheet_();
+  _getPlanRunsSheet_();
+  _getPlanItemsSheet_();
+  _ensureCatalogSeeded_();
+  Logger.log("Planner database ready: " + sheet.getName() + " with " + sheet.getLastRow() + " rows.");
 }
 
 /* ============================================================================
@@ -346,6 +406,36 @@ var SHEET_COLUMNS = {
     "feedback_at",
     "created_at"
   ],
+  Plan_Runs: [
+    "plan_run_id",
+    "day_id",
+    "user_id",
+    "generated_at",
+    "readiness",
+    "input_task_count",
+    "kept_task_count",
+    "moved_to_scheduled_count",
+    "recommendation_task_count",
+    "scheduled_snapshot_count"
+  ],
+  Plan_Items: [
+    "plan_item_id",
+    "plan_run_id",
+    "day_id",
+    "task_id",
+    "task_name",
+    "source",
+    "decision",
+    "slot_key",
+    "order",
+    "difficulty",
+    "urgency",
+    "planned_minutes",
+    "completed_at_generation",
+    "completed",
+    "completion_time",
+    "created_at"
+  ],
   Recommendations_Catalog: ["card_id", "scope", "kind", "title"]
 };
 
@@ -367,6 +457,88 @@ function buildDayId(userId, date) {
 
 function buildRecommendationId(dayId, scope) {
   return String(dayId || "") + "::" + String(scope || "");
+}
+
+function buildPlanRunId(dayId, generatedAt, explicitId) {
+  if (explicitId) return String(explicitId);
+  return String(dayId || "") + "::plan::" + String(generatedAt || "");
+}
+
+function isRecommendationPlanTask(task) {
+  return !!(task && (task.recommendationId || task.source === "embed_suggestion"));
+}
+
+function buildPlanRunRows(dayId, userId, payload, generatedAt) {
+  payload = payload || {};
+  var kept = Array.isArray(payload.tasks) ? payload.tasks : [];
+  var scheduled = Array.isArray(payload.scheduled) ? payload.scheduled : [];
+  var movedIds = Array.isArray(payload.movedTaskIds)
+    ? payload.movedTaskIds.map(String)
+    : [];
+
+  // Совместимость со старым клиентом: distributeTasks добавляет только что
+  // перенесённые задачи в конец scheduled, а payload содержит их количество.
+  if (!movedIds.length) {
+    var movedCount = Math.max(0, Number(payload.movedToScheduled) || 0);
+    if (movedCount > 0) {
+      movedIds = scheduled.slice(-movedCount).map(function (task) {
+        return task && task.id ? String(task.id) : "";
+      }).filter(Boolean);
+    }
+  }
+
+  var scheduledById = {};
+  scheduled.forEach(function (task) {
+    if (task && task.id) scheduledById[String(task.id)] = task;
+  });
+
+  var planRunId = buildPlanRunId(dayId, generatedAt, payload.planRunId);
+  var items = [];
+
+  function addItem(task, decision) {
+    if (!task || !task.id) return;
+    var taskId = String(task.id);
+    var isRecommendation = isRecommendationPlanTask(task);
+    items.push({
+      plan_item_id: planRunId + "::" + taskId,
+      plan_run_id: planRunId,
+      day_id: dayId,
+      task_id: taskId,
+      task_name: task.title || "",
+      source: isRecommendation ? "embed_suggestion" : "manual",
+      decision: decision,
+      slot_key: task.slotKey || "",
+      order: task.order == null ? "" : task.order,
+      difficulty: task.difficulty == null ? "" : task.difficulty,
+      urgency: task.urgency == null ? "" : task.urgency,
+      planned_minutes: task.duration == null ? "" : task.duration,
+      completed_at_generation: toBoolCell(!!task.done),
+      completed: toBoolCell(!!task.done),
+      completion_time: "",
+      created_at: generatedAt
+    });
+  }
+
+  kept.forEach(function (task) { addItem(task, "kept"); });
+  movedIds.forEach(function (taskId) {
+    addItem(scheduledById[taskId] || { id: taskId }, "postponed");
+  });
+
+  return {
+    run: {
+      plan_run_id: planRunId,
+      day_id: dayId,
+      user_id: userId,
+      generated_at: generatedAt,
+      readiness: payload.readiness == null ? "" : payload.readiness,
+      input_task_count: kept.length + movedIds.length,
+      kept_task_count: kept.length,
+      moved_to_scheduled_count: movedIds.length,
+      recommendation_task_count: kept.filter(isRecommendationPlanTask).length,
+      scheduled_snapshot_count: scheduled.length
+    },
+    items: items
+  };
 }
 
 function toBoolCell(value) {
@@ -720,6 +892,8 @@ function _getMorningCheckinSheet_() { return _getNormalizedSheet_("Morning_Check
 function _getEveningCheckinSheet_() { return _getNormalizedSheet_("Evening_Checkin", SHEET_COLUMNS.Evening_Checkin); }
 function _getTasksSheet_() { return _getNormalizedSheet_("Tasks", SHEET_COLUMNS.Tasks); }
 function _getRecommendationsSheet_() { return _getNormalizedSheet_("Recommendations", SHEET_COLUMNS.Recommendations); }
+function _getPlanRunsSheet_() { return _getNormalizedSheet_("Plan_Runs", SHEET_COLUMNS.Plan_Runs); }
+function _getPlanItemsSheet_() { return _getNormalizedSheet_("Plan_Items", SHEET_COLUMNS.Plan_Items); }
 
 function _getCatalogSheet_() {
   var sheet = _getNormalizedSheet_("Recommendations_Catalog", SHEET_COLUMNS.Recommendations_Catalog);
@@ -822,14 +996,55 @@ function _applyTaskEvent_(eventType, dayId, payload, nowIso) {
   _upsertRow_(_getTasksSheet_(), SHEET_COLUMNS.Tasks, "task_id", taskId, function (existing) {
     return mergeTaskRow(existing, taskId, dayId, patch, nowIso);
   });
+  if (eventType === "task_toggled") {
+    _updatePlanItemsCompletion_(taskId, !!(payload && payload.done), nowIso);
+  }
 }
 
-function _applyPlanGenerated_(dayId, payload, nowIso) {
+function _updatePlanItemsCompletion_(taskId, done, nowIso) {
+  var sheet = _getPlanItemsSheet_();
+  var columns = SHEET_COLUMNS.Plan_Items;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  var taskIdColumn = columns.indexOf("task_id") + 1;
+  var completedColumn = columns.indexOf("completed") + 1;
+  var completionTimeColumn = columns.indexOf("completion_time") + 1;
+  var taskIds = sheet.getRange(2, taskIdColumn, lastRow - 1, 1).getValues();
+
+  for (var i = 0; i < taskIds.length; i++) {
+    if (String(taskIds[i][0]) !== String(taskId)) continue;
+    var row = i + 2;
+    sheet.getRange(row, completedColumn).setValue(toBoolCell(done));
+    sheet.getRange(row, completionTimeColumn).setValue(done ? nowIso : "");
+  }
+}
+
+function _applyPlanGenerated_(dayId, userId, payload, nowIso) {
   var patches = buildTaskPatchesFromPlanGenerated(payload);
   patches.forEach(function (item) {
     _upsertRow_(_getTasksSheet_(), SHEET_COLUMNS.Tasks, "task_id", item.taskId, function (existing) {
       return mergeTaskRow(existing, item.taskId, dayId, item.patch, nowIso);
     });
+  });
+
+  var snapshot = buildPlanRunRows(dayId, userId, payload, nowIso);
+  _upsertRow_(
+    _getPlanRunsSheet_(),
+    SHEET_COLUMNS.Plan_Runs,
+    "plan_run_id",
+    snapshot.run.plan_run_id,
+    function () { return snapshot.run; }
+  );
+
+  snapshot.items.forEach(function (item) {
+    _upsertRow_(
+      _getPlanItemsSheet_(),
+      SHEET_COLUMNS.Plan_Items,
+      "plan_item_id",
+      item.plan_item_id,
+      function () { return item; }
+    );
   });
 }
 
@@ -900,7 +1115,7 @@ function _recordNormalized_(data, payload, nowIsoOverride) {
       _applyTaskEvent_(eventType, dayId, payload, nowIso);
       break;
     case "plan_generated":
-      _applyPlanGenerated_(dayId, payload, nowIso);
+      _applyPlanGenerated_(dayId, userId, payload, nowIso);
       break;
     case "morning_embed_added":
     case "evening_embed_added":
