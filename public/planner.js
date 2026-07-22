@@ -624,10 +624,10 @@
 
     var fatigue = getScale1to5("fatigue");
     var taskStart = getScale1to5("eveningTaskStart");
-    var procrastination = getScale1to5("eveningProcrastination");
+    var planOverload = getScale1to5("eveningPlanOverload");
     var detachment = getScale1to5("eveningDetachment");
     if (!Number.isFinite(fatigue) || !Number.isFinite(taskStart) ||
-        !Number.isFinite(procrastination) || !Number.isFinite(detachment)) {
+        !Number.isFinite(planOverload) || !Number.isFinite(detachment)) {
       alert(t("planner.evening.scaleInvalid"));
       return;
     }
@@ -636,7 +636,7 @@
       date: today,
       fatigue: fatigue,
       taskStart: taskStart,
-      procrastination: procrastination,
+      planOverload: planOverload,
       detachment: detachment,
       note: byId("eveningNote").value.trim(),
       completed: state.tasks.filter(function (task) { return task.done; }).length,
@@ -675,7 +675,7 @@
       "morningNote",
       "fatigue",
       "eveningTaskStart",
-      "eveningProcrastination",
+      "eveningPlanOverload",
       "eveningDetachment",
       "eveningNote"
     ].forEach(function (id) {
@@ -1640,8 +1640,8 @@
     var e = state.evening;
     if (byId("fatigue") && e.fatigue != null) byId("fatigue").value = String(e.fatigue);
     if (byId("eveningTaskStart") && e.taskStart != null) byId("eveningTaskStart").value = String(e.taskStart);
-    if (byId("eveningProcrastination") && e.procrastination != null) {
-      byId("eveningProcrastination").value = String(e.procrastination);
+    if (byId("eveningPlanOverload") && e.planOverload != null) {
+      byId("eveningPlanOverload").value = String(e.planOverload);
     }
     if (byId("eveningDetachment") && e.detachment != null) {
       byId("eveningDetachment").value = String(e.detachment);

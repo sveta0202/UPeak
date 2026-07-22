@@ -204,7 +204,7 @@ function doGet(_e) {
   return _jsonOutput_({
     ok: true,
     service: "upeak-planner-events",
-    version: 2,
+    version: 3,
     sheet: SHEET_NAME
   });
 }
@@ -368,6 +368,7 @@ var SHEET_COLUMNS = {
     "evening_checkin_id",
     "day_id",
     "fatigue",
+    "plan_overload",
     "procrastination",
     "start_difficulty",
     "detachment",
@@ -624,6 +625,7 @@ function mergeEveningCheckinRow(existing, dayId, patch, nowIso) {
     evening_checkin_id: dayId,
     day_id: dayId,
     fatigue: "",
+    plan_overload: "",
     procrastination: "",
     start_difficulty: "",
     detachment: "",
@@ -703,7 +705,7 @@ function buildEveningCheckinPatch(payload) {
   payload = payload || {};
   return compactPatch({
     fatigue: payload.fatigue,
-    procrastination: payload.procrastination,
+    plan_overload: payload.planOverload,
     start_difficulty: payload.taskStart,
     detachment: payload.detachment,
     completed_tasks: payload.completed,
@@ -889,7 +891,17 @@ function _getNormalizedSheet_(name, columns) {
 function _getUsersSheet_() { return _getNormalizedSheet_("Users", SHEET_COLUMNS.Users); }
 function _getDaysSheet_() { return _getNormalizedSheet_("Days", SHEET_COLUMNS.Days); }
 function _getMorningCheckinSheet_() { return _getNormalizedSheet_("Morning_Checkin", SHEET_COLUMNS.Morning_Checkin); }
-function _getEveningCheckinSheet_() { return _getNormalizedSheet_("Evening_Checkin", SHEET_COLUMNS.Evening_Checkin); }
+function _getEveningCheckinSheet_() {
+  var sheet = _getNormalizedSheet_("Evening_Checkin", SHEET_COLUMNS.Evening_Checkin);
+  // Сохраняем старые тестовые значения procrastination и добавляем новый
+  // показатель отдельной колонкой, чтобы не переименовать исторические данные.
+  if (String(sheet.getRange(1, 4).getValue() || "").trim() === "procrastination") {
+    sheet.insertColumnBefore(4);
+    sheet.getRange(1, 4).setValue("plan_overload");
+    sheet.getRange(1, 1, 1, SHEET_COLUMNS.Evening_Checkin.length).setFontWeight("bold");
+  }
+  return sheet;
+}
 function _getTasksSheet_() { return _getNormalizedSheet_("Tasks", SHEET_COLUMNS.Tasks); }
 function _getRecommendationsSheet_() { return _getNormalizedSheet_("Recommendations", SHEET_COLUMNS.Recommendations); }
 function _getPlanRunsSheet_() { return _getNormalizedSheet_("Plan_Runs", SHEET_COLUMNS.Plan_Runs); }

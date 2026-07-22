@@ -33,7 +33,7 @@ flowchart TD
 | `Users` | `user_id` (= Participant ID) | первое/последнее появление, счётчик сессий |
 | `Days` | `day_id` = `{user_id}::{date}` | «каркас» дня: ссылки на чек-ины, рекомендации, % выполнения |
 | `Morning_Checkin` | `morning_checkin_id` (= `day_id`) | сон/качество/энергия/стресс/готовность/day_state |
-| `Evening_Checkin` | `evening_checkin_id` (= `day_id`) | усталость/прокрастинация/трудность старта/отключение |
+| `Evening_Checkin` | `evening_checkin_id` (= `day_id`) | усталость/перегруз плана/трудность старта/отключение (`procrastination` сохранена только для старых данных) |
 | `Tasks` | `task_id` (клиентский id) | одна строка на задачу; статус active/scheduled/deleted |
 | `Recommendations` | `recommendation_id` = `{day_id}::{scope}` | одна строка на (день, утро/вечер): card_id, текст-снимок, helpful |
 | `Plan_Runs` | `plan_run_id` | одно нажатие «Распределить»: входной объём, сколько оставлено/перенесено, readiness |

@@ -148,7 +148,7 @@ test("docs/CodeAPP.gs: buildMorningCheckinPatch / buildEveningCheckinPatch со�
   };
   assert.deepEqual(gs.buildMorningCheckinPatch(morningPayload), schema.buildMorningCheckinPatch(morningPayload));
 
-  var eveningPayload = { fatigue: 4, taskStart: 2, procrastination: 2, detachment: 4, completed: 7, total: 10 };
+  var eveningPayload = { fatigue: 4, taskStart: 2, planOverload: 5, detachment: 4, completed: 7, total: 10 };
   assert.deepEqual(gs.buildEveningCheckinPatch(eveningPayload), schema.buildEveningCheckinPatch(eveningPayload));
 });
 

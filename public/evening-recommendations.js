@@ -76,7 +76,7 @@
   }
 
   function isStartHard(evening) {
-    return evening && (Number(evening.procrastination) >= 4 || Number(evening.taskStart) >= 4);
+    return evening && Number(evening.taskStart) >= 4;
   }
 
   // Одна карточка = одна причина → одно решение. Приоритет сверху вниз,

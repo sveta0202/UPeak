@@ -162,13 +162,15 @@ test("buildEveningCheckinPatch: маппит taskStart -> start_difficulty", fun
   var patch = schema.buildEveningCheckinPatch({
     fatigue: 4,
     taskStart: 2,
-    procrastination: 2,
+    planOverload: 5,
     detachment: 4,
     completed: 7,
     total: 10
   });
   assert.equal(patch.start_difficulty, 2);
   assert.equal(patch.fatigue, 4);
+  assert.equal(patch.plan_overload, 5);
+  assert.equal(patch.procrastination, undefined);
   assert.equal(patch.completed_tasks, 7);
   assert.equal(patch.total_tasks, 10);
 });
