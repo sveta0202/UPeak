@@ -227,7 +227,6 @@
                 <div class="hidden md:flex items-center space-x-6">
                     <a href="#research" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.research">Исследование</a>
                     <a href="#experiment" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.experiment">Эксперимент</a>
-                    <a href="#results" class="text-muted hover:text-gray-800 transition text-sm" data-i18n="nav.results">Результаты</a>
                     <a href="participate.html" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium" data-i18n="nav.join" data-testid="nav-join">
                         Участвовать
                     </a>
@@ -257,7 +256,7 @@
                 <span class="font-normal" data-i18n="hero.title.line2">даже когда планируешь хорошо?</span>
             </h1>
             <p class="text-lg text-muted mb-8 leading-relaxed max-w-2xl" data-i18n="hero.subtitle">
-                Мы проводим 14-дневный эксперимент, чтобы понять как состояние влияет на твою нагрузку и выполнение задач
+                Мы проводим 7-дневный пилот адаптивного планировщика, который учитывает состояние, нагрузку и выполнение задач
             </p>
             <div class="flex flex-col sm:flex-row gap-4">
                 <a href="participate.html" class="btn-primary px-8 py-4 rounded-lg font-medium text-lg" data-i18n="hero.cta.join" data-testid="hero-join">
@@ -356,63 +355,33 @@
 
             <div class="research-card p-8 mb-8">
                 <div class="text-center mb-8">
-                    <div class="text-4xl font-light text-gray-800 mb-2" data-i18n="experiment.duration">14 дней</div>
-                    <p class="text-muted" data-i18n="experiment.duration.note">для исследования твоих паттернов</p>
+                    <div class="text-4xl font-light text-gray-800 mb-2" data-i18n="experiment.duration">7 дней</div>
+                    <p class="text-muted" data-i18n="experiment.duration.note">два коротких чек-ина в день</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-8">
                     <div class="text-center p-6 border border-gray-300/50 rounded-lg">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4" data-i18n="experiment.week1.title">Неделя 1</h3>
-                        <p class="text-muted mb-2" data-i18n="experiment.week1.head">Обычная жизнь</p>
-                        <p class="text-sm text-muted" data-i18n="experiment.week1.desc">Ты живёшь как обычно, мы просто собираем данные о состоянии и выполнении задач</p>
+                        <h3 class="text-xl font-medium text-gray-800 mb-4" data-i18n="experiment.daily.title">Каждый день</h3>
+                        <p class="text-muted mb-2" data-i18n="experiment.daily.head">План по состоянию</p>
+                        <p class="text-sm text-muted" data-i18n="experiment.daily.desc">Утром оцениваешь состояние и распределяешь задачи, вечером закрываешь день и получаешь рекомендацию</p>
                     </div>
                     <div class="text-center p-6 border border-gray-300/50 rounded-lg">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4" data-i18n="experiment.week2.title">Неделя 2</h3>
-                        <p class="text-muted mb-2" data-i18n="experiment.week2.head">С трекингом</p>
-                        <p class="text-sm text-muted" data-i18n="experiment.week2.desc">Ты отслеживаешь состояние и получаешь рекомендации по нагрузке</p>
+                        <h3 class="text-xl font-medium text-gray-800 mb-4" data-i18n="experiment.finish.title">После 7 дней</h3>
+                        <p class="text-muted mb-2" data-i18n="experiment.finish.head">Короткий итоговый опрос</p>
+                        <p class="text-sm text-muted" data-i18n="experiment.finish.desc">Расскажешь, что было полезно, что мешало и захотелось ли продолжить пользоваться планировщиком</p>
                     </div>
                 </div>
             </div>
 
             <div class="text-center">
                 <p class="text-lg text-muted" data-i18n="experiment.note">
-                    Мы сравниваем поведение и ищем закономерности
+                    Мы ищем первые сигналы полезности, а не обещаем доказанный эффект
                 </p>
             </div>
         </div>
     </section>
 
-    <!-- SECTION 5: ЧТО ПОЛУЧИТ ПОЛЬЗОВАТЕЛЬ -->
-    <section id="results" class="py-24 px-6 fade-in">
-        <div class="max-w-4xl mx-auto">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-light text-gray-800 mb-4" data-i18n="results.title">
-                    В конце ты увидишь
-                </h2>
-            </div>
-
-            <div class="space-y-4">
-                <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="icon-md text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-chart"></use></svg></div>
-                    <div class="text-lg text-gray-800" data-i18n="results.patterns">Свои паттерны нагрузки</div>
-                </div>
-                <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="icon-md accent-red"><svg class="sf-icon" aria-hidden="true"><use href="#sf-warning"></use></svg></div>
-                    <div class="text-lg text-gray-800" data-i18n="results.overload">Когда ты перегружаешь себя</div>
-                </div>
-                <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="icon-md text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-trend"></use></svg></div>
-                    <div class="text-lg text-gray-800" data-i18n="results.influence">Как состояние влияет на выполнение задач</div>
-                </div>
-                <div class="research-card p-6 flex items-center space-x-4">
-                    <div class="icon-md text-gray-700"><svg class="sf-icon" aria-hidden="true"><use href="#sf-target"></use></svg></div>
-                    <div class="text-lg text-gray-800" data-i18n="results.real">Как ты реально работаешь</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- SECTION 6: ВАЖНОЕ ОБЪЯСНЕНИЕ -->
+    <!-- SECTION 5: ВАЖНОЕ ОБЪЯСНЕНИЕ -->
     <section class="py-24 px-6 fade-in">
         <div class="max-w-3xl mx-auto">
             <div class="research-card p-8 text-center">
