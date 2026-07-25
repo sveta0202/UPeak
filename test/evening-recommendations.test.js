@@ -48,6 +48,7 @@ test("S1 fatigue_high: усталость 4, план 70% → fatigue_high + E1"
 test("S2 detachment_low: усталость 2, отключение 1, план 50% → detachment_low + E2", function () {
   var cards = recs(60, 5, 10, evening(2, 2, 2, 1));
   assert.equal(cards[0].decision_key, "detachment_low");
+  assert.equal(cards[0].tone, "steady");
   assert.match(cards[0].narrative, /мозг всё ещё остаётся в рабочих задачах/);
   var ids = cards[0].embedOffers.map(function (o) { return o.id; });
   assert.ok(ids.indexOf("evening_phone_away") !== -1);
@@ -56,8 +57,9 @@ test("S2 detachment_low: усталость 2, отключение 1, план 
 test("S3 start_hard: усталость 2, трудно начать 4, план 40% → start_hard + E3", function () {
   var cards = recs(60, 4, 10, evening(2, 4, 5, 4));
   assert.equal(cards[0].decision_key, "start_hard");
+  assert.equal(cards[0].tone, "steady");
   assert.match(cards[0].narrative, /начало работы/);
-  assert.ok(cards[0].actions.some(function (a) { return /один первый шаг/.test(a); }));
+  assert.ok(cards[0].actions.some(function (a) { return /перв(ый|ого) шаг/.test(a); }));
   var ids = cards[0].embedOffers.map(function (o) { return o.id; });
   assert.ok(ids.indexOf("evening_tiny_start") !== -1);
 });
@@ -78,7 +80,7 @@ test("S4 completion_high: спокойный вечер, план 80% → comple
 test("S5 completion_low: спокойный вечер, план 25% → completion_low", function () {
   var cards = recs(60, 2, 8, evening(2, 2, 2, 4));
   assert.equal(cards[0].decision_key, "completion_low");
-  assert.equal(cards[0].tone, "recovery");
+  assert.equal(cards[0].tone, "steady");
   assert.match(cards[0].narrative, /слишком тяжёлым/);
 });
 

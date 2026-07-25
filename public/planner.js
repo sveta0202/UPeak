@@ -2143,7 +2143,7 @@
       }
 
       if (rec.result) {
-        html += '<p class="intervention-result-label"><strong>Потенциальный эффект</strong></p>';
+        html += '<p class="intervention-result-label"><strong>Ориентир</strong></p>';
         if (rec.result_condition) {
           html += '<p class="intervention-result-condition">' + escapeHtml(rec.result_condition) + "</p>";
         }

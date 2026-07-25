@@ -371,11 +371,21 @@
             hintLine.style.marginTop = "2px";
             hintLine.style.fontWeight = "400";
             hintLine.style.fontSize = "13px";
-            hintLine.textContent = t("participate.id.hint", "Сохраните этот ID — он понадобится в прототипе-планировщике.");
+            hintLine.textContent = t("participate.id.hint", "Сохраните этот ID — он понадобится в планировщике.");
+
+            var plannerLink = document.createElement("a");
+            plannerLink.href = "./planner.html";
+            plannerLink.style.display = "inline-block";
+            plannerLink.style.marginTop = "10px";
+            plannerLink.style.fontWeight = "600";
+            plannerLink.style.fontSize = "14px";
+            plannerLink.style.color = "#1a365d";
+            plannerLink.textContent = t("participate.id.openPlanner", "Открыть планировщик →");
 
             statusBanner.appendChild(baseLine);
             statusBanner.appendChild(idLine);
             statusBanner.appendChild(hintLine);
+            statusBanner.appendChild(plannerLink);
             if (typeof statusBanner.scrollIntoView === "function") {
               statusBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
             }

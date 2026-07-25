@@ -45,9 +45,10 @@ test("morning 7h, quality 4, fatigue 1, stress 1 → high_performance + high car
   assert.equal(embedIds.indexOf("tiny_first_step"), -1);
   assert.ok(embedIds.indexOf("evening_tune_walk") !== -1);
   assert.ok(embedIds.indexOf("evening_tune_sleep") !== -1);
-  assert.match(cards[0].result, /Сегодня:.*10–20/);
-  assert.match(cards[0].result, /Завтра:/);
+  assert.match(cards[0].result, /сегодня может быть чуть легче/i);
+  assert.match(cards[0].result, /завтра/i);
   assert.ok(cards[0].result.indexOf("20–35") === -1);
+  assert.ok(cards[0].result.indexOf("максимальн") === -1);
 });
 
 test("growth: mild sleep gap still suggests hard block, not tiny step embed", function () {

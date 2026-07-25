@@ -208,7 +208,8 @@
       "participate.survey.q3.opt.almostNever": "Практически нет",
 
       "participate.id.assigned": "Ваш ID участника:",
-      "participate.id.hint": "Сохраните этот ID — он понадобится в прототипе-планировщике.",
+      "participate.id.hint": "Сохраните этот ID — он понадобится в планировщике.",
+      "participate.id.openPlanner": "Открыть планировщик →",
 
       "planner.id.label": "Мой ID",
       "planner.id.placeholder": "Например, UP-000001",
@@ -427,7 +428,8 @@
       "participate.survey.q3.opt.almostNever": "Almost never",
 
       "participate.id.assigned": "Your participant ID:",
-      "participate.id.hint": "Save this ID — you'll need it in the planner prototype.",
+      "participate.id.hint": "Save this ID — you'll need it in the planner.",
+      "participate.id.openPlanner": "Open the planner →",
 
       "planner.id.label": "My ID",
       "planner.id.placeholder": "e.g., UP-000001",

@@ -143,14 +143,7 @@
 
   function cardToneFromDecisionKey(decisionKey) {
     if (decisionKey === "completion_high") return "high";
-    if (
-      decisionKey === "completion_low" ||
-      decisionKey === "fatigue_high" ||
-      decisionKey === "detachment_low" ||
-      decisionKey === "start_hard"
-    ) {
-      return "recovery";
-    }
+    if (decisionKey === "fatigue_high") return "recovery";
     return "steady";
   }
 
