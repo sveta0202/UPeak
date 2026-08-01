@@ -31,6 +31,8 @@ var HEADERS = [
   "Q3: " + Q3_TEXT_RU,
   "Q3 Answer",
   "Q3 Answer (label)",
+  "Consent Version",
+  "Consent At",
   "Status"
 ];
 
@@ -75,6 +77,14 @@ function _ensureHeaders_(sheet) {
     sheet.getRange(1, 1).setValue("Participant ID");
     sheet.getRange(1, 1).setFontWeight("bold");
     _backfillMissingIds_(sheet);
+  }
+
+  var lastCol = sheet.getLastColumn();
+  if (lastCol < HEADERS.length) {
+    for (var c = lastCol + 1; c <= HEADERS.length; c++) {
+      sheet.getRange(1, c).setValue(HEADERS[c - 1]);
+    }
+    sheet.getRange(1, 1, 1, HEADERS.length).setFontWeight("bold");
   }
 }
 
@@ -230,7 +240,7 @@ function doGet(e) {
           participantId: id,
           name: found.values[3] || "",
           language: found.values[9] || "",
-          status: found.values[22] || ""
+          status: found.values[24] || ""
         }
       });
     }
@@ -238,7 +248,7 @@ function doGet(e) {
     return _jsonOutput_({
       ok: true,
       service: "upeak-participants",
-      version: 4,
+      version: 5,
       sheet: SHEET_NAME,
       columns: HEADERS.length
     });
@@ -299,6 +309,12 @@ function doPost(e) {
       return _jsonOutput_({ ok: false, error: "survey_q3_required" });
     }
 
+    if (data.consentAccepted !== true && data.consentAccepted !== "true") {
+      return _jsonOutput_({ ok: false, error: "consent_required" });
+    }
+    var consentVersion = _sanitize_(data.consentVersion, 32) || "2026-07-26";
+    var consentAt = _sanitize_(data.consentAt, 64);
+
     var contactType = _sanitize_(data.contactType, 16);
     var contactValue = _sanitize_(data.contactValue, 200);
     if (!contactType) {
@@ -338,6 +354,8 @@ function doPost(e) {
       q3.question || Q3_TEXT_RU,
       q3.answer,
       q3.label,
+      consentVersion,
+      consentAt,
       "new"
     ];
     sheet.appendRow(row);

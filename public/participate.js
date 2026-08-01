@@ -12,6 +12,11 @@
   var emailField = document.getElementById("emailField");
   var submitButton = document.getElementById("submitButton");
   var statusBanner = document.getElementById("statusBanner");
+  var consentCheckbox = document.getElementById("consentCheckbox");
+  var consentRow = document.getElementById("consentRow");
+  var consentError = document.getElementById("consentError");
+
+  var CONSENT_VERSION = "2026-07-26";
 
   var nameError = document.getElementById("nameError");
   var phoneError = document.getElementById("phoneError");
@@ -127,6 +132,31 @@
     setFieldError(telegramInput, telegramError, null);
     setFieldError(emailInput, emailError, null);
     SURVEY_QUESTIONS.forEach(function (q) { setSurveyError(q, null); });
+    setConsentError(null);
+  }
+
+  function setConsentError(key, fallback) {
+    if (!consentRow || !consentError) return;
+    if (key) {
+      consentError.setAttribute("data-i18n", key);
+      consentError.textContent = t(key, fallback || "");
+      consentError.classList.add("is-visible");
+      consentRow.classList.add("is-invalid");
+      consentRow.setAttribute("aria-invalid", "true");
+    } else {
+      consentError.classList.remove("is-visible");
+      consentRow.classList.remove("is-invalid");
+      consentRow.removeAttribute("aria-invalid");
+    }
+  }
+
+  function isConsentAccepted() {
+    return !!(consentCheckbox && consentCheckbox.checked);
+  }
+
+  function updateSubmitEnabled(isSubmitting) {
+    if (!submitButton) return;
+    submitButton.disabled = !!isSubmitting || !isConsentAccepted();
   }
 
   function showBanner(kind, key, fallback) {
@@ -241,6 +271,11 @@
       }
     }
 
+    if (!isConsentAccepted()) {
+      setConsentError("participate.consent.error", "Подтвердите согласие, чтобы отправить заявку");
+      ok = false;
+    }
+
     return ok;
   }
 
@@ -308,6 +343,9 @@
       sourcePage: window.location.href,
       userAgent: navigator.userAgent || "",
       submittedAt: new Date().toISOString(),
+      consentAccepted: true,
+      consentVersion: CONSENT_VERSION,
+      consentAt: new Date().toISOString(),
       survey: buildSurveyPayload()
     };
   }
@@ -321,8 +359,8 @@
   }
 
   function setSubmitting(isSubmitting) {
+    updateSubmitEnabled(!!isSubmitting);
     if (!submitButton) return;
-    submitButton.disabled = !!isSubmitting;
     submitButton.setAttribute("aria-busy", isSubmitting ? "true" : "false");
   }
 
@@ -392,6 +430,8 @@
           }
 
           form.reset();
+          if (consentCheckbox) consentCheckbox.checked = false;
+          updateSubmitEnabled(false);
           document.querySelectorAll(".survey-option.is-selected").forEach(function (el) {
             el.classList.remove("is-selected");
           });
@@ -442,7 +482,15 @@
     });
   });
 
+  if (consentCheckbox) {
+    consentCheckbox.addEventListener("change", function () {
+      if (consentCheckbox.checked) setConsentError(null);
+      updateSubmitEnabled(false);
+    });
+  }
+
   applyLangVisibility();
+  updateSubmitEnabled(false);
 
   if (window.UpeakI18n && typeof window.UpeakI18n.onChange === "function") {
     window.UpeakI18n.onChange(function () {

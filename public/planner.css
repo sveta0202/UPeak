@@ -260,6 +260,12 @@ input::placeholder { color: rgba(26, 54, 93, 0.4); }
   line-height: 1.45;
   color: var(--text);
 }
+.intervention-advisory {
+  margin: 0 0 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
 .intervention-state-badge {
   display: inline-block;
   margin: 0 0 6px;

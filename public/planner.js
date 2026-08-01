@@ -59,6 +59,7 @@
       "planner.evening.reviewPlanMeta": "· по плану {pct}%",
       "planner.evening.scaleInvalid": "Укажите значение от 1 до 5 во всех полях вечернего чек-ина.",
       "planner.morning.recommendationsTitle": "Рекомендации на сегодня",
+      "planner.recommendation.advisory": "Это рекомендация на основе данных вашего чек-ина, а не обязательное указание.",
       "planner.alerts.titleRequired": "Введите название задачи",
       "planner.id.required": "Сохраните «Мой ID», чтобы данные попадали в основную таблицу.",
       "planner.id.empty": "Введите ID участника.",
@@ -110,6 +111,7 @@
       "planner.evening.reviewPlanMeta": "· plan {pct}%",
       "planner.evening.scaleInvalid": "Enter a value from 1 to 5 in all evening check-in fields.",
       "planner.morning.recommendationsTitle": "Recommendations for today",
+      "planner.recommendation.advisory": "This recommendation is based on your check-in data and is not a mandatory instruction.",
       "planner.alerts.titleRequired": "Please enter a task title",
       "planner.id.required": "Save \"My ID\" so your data reaches the main data sheet.",
       "planner.id.empty": "Enter a participant ID.",
@@ -2095,6 +2097,8 @@
       html += '<p class="intervention-state-badge">' + escapeHtml(rec.state_title) + "</p>";
     }
     html += '<p class="intervention-diagnosis">' + emoji + " " + escapeHtml(stateText) + "</p>";
+    html += '<p class="intervention-advisory">' +
+      escapeHtml(t("planner.recommendation.advisory")) + "</p>";
 
     if (rec.decision) {
       html += '<p class="intervention-decision">' + escapeHtml(rec.decision) + "</p>";
@@ -2124,7 +2128,8 @@
 
     if (!isEveningCard) {
       if (Array.isArray(rec.avoid) && rec.avoid.length) {
-        html += '<p class="intervention-avoid-label"><strong>Избегай</strong></p>';
+        html += '<p class="intervention-avoid-label"><strong>' +
+          escapeHtml(t("planner.recommendation.avoidLabel")) + "</strong></p>";
         html += '<ul class="intervention-avoid-list">';
         rec.avoid.forEach(function (item) {
           html += "<li>" + escapeHtml(item) + "</li>";
@@ -2133,7 +2138,8 @@
       }
 
       if (rec.move_to_max) {
-        html += '<p class="intervention-move-label"><strong>Как выйти на максимум</strong></p>';
+        html += '<p class="intervention-move-label"><strong>' +
+          escapeHtml(t("planner.recommendation.improveLabel")) + "</strong></p>";
         html += '<p class="intervention-move">' + escapeHtml(rec.move_to_max) + "</p>";
       }
 

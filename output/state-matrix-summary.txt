@@ -1,0 +1,11 @@
+State distribution (625 combinations, metrics 1-5 each)
+
+single_issue: 196 (31.4%)
+recovery: 152 (24.3%)
+emergency_recovery: 118 (18.9%)
+mixed + mixed_severe: 78 (12.5%)
+high_performance: 50 (8.0%)
+normal + borderline: 16 (2.6%)
+plateau: 15 (2.4%)
+
+CSV: /Users/founder/Projects/UPeak/output/state-matrix-625.csv

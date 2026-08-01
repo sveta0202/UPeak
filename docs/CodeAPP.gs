@@ -74,11 +74,11 @@ function _getSpreadsheet_() {
     return SpreadsheetApp.openById(SPREADSHEET_ID);
   }
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) {
-    throw new Error("No active spreadsheet. Set SPREADSHEET_ID or bind the script to a sheet.");
-  }
+    if (!ss) {
+      throw new Error("No active spreadsheet. Set SPREADSHEET_ID or bind the script to a sheet.");
+    }
   return ss;
-}
+  }
 
 function _getSheet_() {
   var ss = _getSpreadsheet_();

@@ -241,6 +241,37 @@
             margin: 24px 0 20px;
         }
 
+        .consent-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px solid rgba(26, 54, 93, 0.14);
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.45;
+            color: #1a365d;
+        }
+
+        .consent-row input[type="checkbox"] {
+            margin-top: 3px;
+            accent-color: #ef4444;
+            flex-shrink: 0;
+        }
+
+        .consent-row a {
+            color: #b91c1c;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .consent-row.is-invalid {
+            border-color: rgba(239, 68, 68, 0.55);
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+        }
+
         @media (max-width: 480px) {
             .survey-option {
                 font-size: 14px;
@@ -437,16 +468,28 @@
                     <p class="form-error" id="emailError" data-i18n="participate.error.email" data-testid="participate-email-error">Please enter a valid email address</p>
                 </div>
 
+                <div class="consent-row" id="consentRow">
+                    <input type="checkbox"
+                           id="consentCheckbox"
+                           name="consent"
+                           value="accepted"
+                           data-testid="participate-consent" />
+                    <label for="consentCheckbox">
+                        <span data-i18n="participate.consent.label">Мне исполнилось 18 лет. Я ознакомился(ась) с</span>
+                        <a href="./consent.html" target="_blank" rel="noopener noreferrer" data-i18n="participate.consent.link">пользовательским соглашением и согласием на участие в исследовании</a>
+                        <span data-i18n="participate.consent.suffix">и принимаю его условия.</span>
+                        <span class="accent-red">*</span>
+                    </label>
+                </div>
+                <p class="form-error" id="consentError" data-i18n="participate.consent.error" data-testid="participate-consent-error">Подтвердите согласие, чтобы отправить заявку</p>
+
                 <button type="submit"
                         id="submitButton"
                         class="btn-primary w-full px-6 py-3 rounded-lg font-medium text-base"
+                        disabled
                         data-testid="participate-submit">
                     <span data-i18n="participate.submit">Отправить заявку</span>
                 </button>
-
-                <p class="text-center text-xs text-muted mt-4" data-i18n="participate.privacy">
-                    Отправляя форму, вы соглашаетесь с тем, что мы используем эти данные только для связи по эксперименту.
-                </p>
             </form>
 
             <div id="statusBanner" class="status-banner" role="status" aria-live="polite"></div>
